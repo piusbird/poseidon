@@ -11,10 +11,11 @@ import (
 	"bytes"
 	"io"
 	"strings"
+	"regexp"
 )
 
 var ourProxy = "http://localhost:8090"
-func fetch(fetchurl string)  (*http.Response, error) {
+func fetch(fetchurl string, muggle bool)  (*http.Response, error) {
 
 	proxyURL, err := url.Parse(ourProxy)
 	if err != nil {
@@ -34,6 +35,11 @@ func fetch(fetchurl string)  (*http.Response, error) {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
+	if muggle {
+		req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0")
+	}
+	
+	
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Accept-Encoding", "gzip")
@@ -55,7 +61,8 @@ func fetch(fetchurl string)  (*http.Response, error) {
 }
 
 var hello = []byte(
-	`<body><style>body { font-size: 2em; }</style>
+	`<title> Blue DabaDeeDabaProxy </title>
+	<body><style>body { font-size: 2em; }</style>
 <p>hello there
 <form action="javascript:void(0);" onsubmit="go()">
 <p>URL: <input id="urlbox">
@@ -63,7 +70,7 @@ var hello = []byte(
 function go() {
     var inp = document.getElementById("urlbox")
     var val = inp.value
-    window.location.href = window.location.href + val
+    window.location.href = window.location.href + '/' +  val
 }
 </script>
 <button onclick="go()">GO</button>
@@ -80,7 +87,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	remurl := urlparts[0] + "//" + urlparts[1]
-	resp, err := fetch(remurl)
+	resp, err := fetch(remurl, false)
 	if err != nil {
 		log.Println(err)
 		return
@@ -90,6 +97,36 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func muggleHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/muggle/" {
+		w.Write(hello)
+		log.Println("It Works!")
+		return
+	}
+	pattern := regexp.MustCompile(`/muggle/`)
+	res := pattern.ReplaceAllString(r.URL.Path, "")
+
+	log.Println("Hello!")
+
+	
+	log.Println(res)
+
+	urlparts := strings.SplitN(res, "/", 2)
+	if len(urlparts) < 2 {
+		return
+	}
+	remurl := urlparts[0] + "//" + urlparts[1]
+	resp, err := fetch(remurl, true)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer resp.Body.Close()
+	io.Copy(w, resp.Body)
+
+}
+
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -98,7 +135,9 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("/muggle/", muggleHandler)
 	mux.HandleFunc("/", indexHandler)
+	
 	http.ListenAndServe(":"+port, mux)
 }
 
