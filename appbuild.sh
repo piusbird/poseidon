@@ -5,6 +5,7 @@ cd miniweb
 make
 cp miniwebproxy /app
 cp -r scripts/ /app
+chmod +x sign.sh
 cd ..
 sh -c miniweb/sign.sh
 git clone https://git.piusbird.space/poseidon.git/
