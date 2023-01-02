@@ -1,4 +1,4 @@
-build:
+build: sign
 	docker build --no-cache . -t deepblue
 sign:
 	./sign.sh
