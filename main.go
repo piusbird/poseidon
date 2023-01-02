@@ -194,7 +194,7 @@ var template = []byte(
 
 <select name="target_ua" id="cars">
   <option value="Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0">Desktop</option>
-  <option value="Twitterbot/1.0">Twitter</option>
+  <option value="Mozilla/5.0 (compatible; Twitterbot/1.0)">Twitter</option>
   <option value="Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)">Google</option>
 </select> <br><br>
 <input type="submit" value="Go">
