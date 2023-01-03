@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -11,8 +12,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
+
+	"github.com/flosch/pongo2/v6"
 )
 
 var default_agent = "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
@@ -28,11 +30,12 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.Form)
 	target_url := r.Form.Get("target_url")
 	ua := r.Form.Get("target_ua")
+	encoded_ua := base64.URLEncoding.EncodeToString([]byte(ua))
 
 	final := r.URL.Hostname() + "/" + target_url
 	cookie := http.Cookie{
 		Name:     "blueProxyUserAgent",
-		Value:    ua,
+		Value:    encoded_ua,
 		Path:     "/",
 		MaxAge:   3600,
 		HttpOnly: true,
@@ -97,25 +100,32 @@ func fetch(fetchurl string, user_agent string) (*http.Response, error) {
 
 }
 
+var tpl = pongo2.Must(pongo2.FromFile("index.html"))
+
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.Header.Get("X-Target-User-Agent"))
 	if r.URL.Path == "/" {
-		w.Write(template)
+		err := tpl.ExecuteWriter(pongo2.Context{"useragents": UserAgents, "version": version}, w)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 	urlparts := strings.SplitN(r.URL.Path[1:], "/", 2)
 	if len(urlparts) < 2 {
 		return
 	}
-	agent := ""
+
 	remurl := urlparts[0] + "//" + urlparts[1]
+	encoded_ua := base64.URLEncoding.EncodeToString([]byte(default_agent))
 	cookie, err := r.Cookie("blueProxyUserAgent")
 	if err != nil {
 		switch {
 		case errors.Is(err, http.ErrNoCookie):
 			cookie := http.Cookie{
 				Name:     "blueProxyUserAgent",
-				Value:    default_agent,
+				Value:    encoded_ua,
 				Path:     "/",
 				MaxAge:   3600,
 				HttpOnly: true,
@@ -130,36 +140,12 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	agent = cookie.Value
-	resp, err := fetch(remurl, agent)
+	decagent, err := base64.URLEncoding.DecodeString(cookie.Value)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer resp.Body.Close()
-	io.Copy(w, resp.Body)
-
-}
-
-func muggleHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/muggle/" {
-		w.Write(template)
-		log.Println("It Works!")
-		return
-	}
-	pattern := regexp.MustCompile(`/muggle/`)
-	res := pattern.ReplaceAllString(r.URL.Path, "")
-
-	log.Println("Hello!")
-
-	log.Println(res)
-
-	urlparts := strings.SplitN(res, "/", 2)
-	if len(urlparts) < 2 {
-		return
-	}
-	remurl := urlparts[0] + "//" + urlparts[1]
-	resp, err := fetch(remurl, "")
+	resp, err := fetch(remurl, string(decagent))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -178,7 +164,6 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/redirect", postFormHandler)
 	mux.HandleFunc("/redirect/", postFormHandler)
-	mux.HandleFunc("/muggle/", muggleHandler)
 	mux.HandleFunc("/", indexHandler)
 
 	http.ListenAndServe(":"+port, mux)
@@ -194,7 +179,7 @@ var template = []byte(
 
 <select name="target_ua" id="cars">
   <option value="Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0">Desktop</option>
-  <option value="Mozilla/5.0 (compatible; Twitterbot/1.0)">Twitter</option>
+  <option value="Mozilla/5.0 (compatible; Twitterbot/1.0)as">Twitter</option>
   <option value="Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)">Google</option>
 </select> <br><br>
 <input type="submit" value="Go">

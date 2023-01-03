@@ -1,0 +1,21 @@
+<title> Blue DabaDeeDabaProxy </title>
+	<body><style>body { font-size: 2em;
+    background: navy;
+    color: gold; 
+    }
+    .smallcaps {
+    font-variant: small-caps
+}
+</style>
+<p>Welcome my good stranger
+<form action="/redirect" method="post">
+<p>URL: <input name="target_url"> <br/>
+<label for="target_ua">Agent?</label>
+
+<select name="target_ua" id="select-ua">
+  {% for d, v in useragents %}
+  <option value="{{v}}"> {{d}} </option>
+  {% endfor %} <br/>
+<input type="submit" value="Go">
+</form>
+<footer> <div class="smallcaps"></div><b> Version: {{version}} </b> </div> </footer> 
