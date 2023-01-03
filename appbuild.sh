@@ -11,4 +11,5 @@ sh -c miniweb/sign.sh
 git clone https://git.piusbird.space/poseidon.git/
 cd poseidon 
 go build
+cp *.html /app
 cp poseidon /app
