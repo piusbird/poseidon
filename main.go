@@ -17,15 +17,12 @@ import (
 	"github.com/flosch/pongo2/v6"
 )
 
-var default_agent = "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-var ourProxy = "http://localhost:8090"
-
 func postFormHandler(w http.ResponseWriter, r *http.Request) {
-	//if r.Method != http.MethodPost {
+	if r.Method != http.MethodPost {
 
-	//http.Error(w, "Method not allowed"+r.Method, http.StatusInternalServerError)
-	//	return
-	//}
+		http.Error(w, "Method not allowed"+r.Method, http.StatusInternalServerError)
+		return
+	}
 	r.ParseForm()
 	log.Println(r.Form)
 	target_url := r.Form.Get("target_url")
@@ -168,20 +165,3 @@ func main() {
 
 	http.ListenAndServe(":"+port, mux)
 }
-
-var template = []byte(
-	`<title> Blue DabaDeeDabaProxy </title>
-	<body><style>body { font-size: 2em; }</style>
-<p>hello there
-<form action="/redirect" method="post">
-<p>URL: <input name="target_url"> <br/>
-<label for="target_ua">Agent?</label>
-
-<select name="target_ua" id="cars">
-  <option value="Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0">Desktop</option>
-  <option value="Mozilla/5.0 (compatible; Twitterbot/1.0)as">Twitter</option>
-  <option value="Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)">Google</option>
-</select> <br><br>
-<input type="submit" value="Go">
-</form>
-`)
