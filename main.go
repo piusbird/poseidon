@@ -163,5 +163,5 @@ func main() {
 	mux.HandleFunc("/redirect/", postFormHandler)
 	mux.HandleFunc("/", indexHandler)
 
-	http.ListenAndServe(":"+port, mux)
+	http.ListenAndServe("127.0.0.1"+":"+port, mux)
 }
