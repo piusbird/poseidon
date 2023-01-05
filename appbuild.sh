@@ -1,15 +1,21 @@
 #!/bin/sh
-
+if [ ! -n $appRoot ]
+then
+	export appRoot="/app"
+fi
+mkdir -pv $appRoot/src
+cd $appRoot/src
+echo $appRoot
 git clone https://git.piusbird.space/miniweb.git/
 cd miniweb
 make
-cp miniwebproxy /app
-cp -r scripts/ /app
+cp miniwebproxy $appRoot
+cp -r scripts/ $appRoot
 chmod +x sign.sh
 cd ..
 sh -c miniweb/sign.sh
 git clone https://git.piusbird.space/poseidon.git/
 cd poseidon 
 go build
-cp *.html /app
-cp poseidon /app
+cp *.html $appRoot
+cp poseidon $appRoot
