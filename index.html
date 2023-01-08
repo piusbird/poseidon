@@ -15,7 +15,10 @@
 <select name="target_ua" id="select-ua">
   {% for d, v in useragents %}
   <option value="{{v}}"> {{d}} </option>
-  {% endfor %} <br/>
+  {% endfor %} 
+  </select><br/>
+  <input type="checkbox"  name="readability" value="true">
+<label for="readability"> MozReader Mode</label><br>
 <input type="submit" value="Go">
 </form>
-<footer> <div class="smallcaps"></div><b> Version: {{version}} </b> </div> </footer> 
+<footer> <div class="smallcaps"><b> Version: {{version}} </b> </div> </footer> 

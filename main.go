@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -15,8 +16,30 @@ import (
 	"strings"
 
 	"github.com/flosch/pongo2/v6"
+	readability "github.com/go-shiori/go-readability"
 )
 
+func encodeCookie(c OurCookie) (string, error) {
+	first, err := json.Marshal(c)
+	if err != nil {
+		return "", err
+	}
+	output := base64.URLEncoding.EncodeToString(first)
+	return output, nil
+}
+
+func decodeCookie(cookieValue string) (OurCookie, error) {
+	decodedJson, err := base64.URLEncoding.DecodeString(cookieValue)
+	var oc OurCookie
+	if err != nil {
+		return oc, err
+	}
+	err = json.Unmarshal([]byte(decodedJson), &oc)
+	if err != nil {
+		return oc, err
+	}
+	return oc, nil
+}
 func postFormHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 
@@ -26,8 +49,22 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	log.Println(r.Form)
 	target_url := r.Form.Get("target_url")
+	rd := r.Form["readability"]
+	log.Println(rd)
 	ua := r.Form.Get("target_ua")
-	encoded_ua := base64.URLEncoding.EncodeToString([]byte(ua))
+	var vb = false
+	if len(rd) != 0 {
+		vb = true
+	}
+	ckMstr := OurCookie{ua, vb}
+
+	encoded_ua, err := encodeCookie(ckMstr)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+
+	}
 
 	final := r.URL.Hostname() + "/" + target_url
 	cookie := http.Cookie{
@@ -54,7 +91,7 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func fetch(fetchurl string, user_agent string) (*http.Response, error) {
+func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error) {
 
 	proxyURL, err := url.Parse(ourProxy)
 	if err != nil {
@@ -65,8 +102,12 @@ func fetch(fetchurl string, user_agent string) (*http.Response, error) {
 		Proxy:           http.ProxyURL(proxyURL),
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
+
 	client := &http.Client{
 		Transport: transport,
+	}
+	if rdbl {
+		client = &http.Client{}
 	}
 	req, err := http.NewRequest("GET", fetchurl, nil)
 	if err != nil {
@@ -93,6 +134,17 @@ func fetch(fetchurl string, user_agent string) (*http.Response, error) {
 		resp.Body.Close()
 		resp.Body = ioutil.NopCloser(&tmp)
 	}
+	if rdbl {
+		var tmp2 bytes.Buffer
+		io.Copy(&tmp2, resp.Body)
+		publishUrl, err := url.Parse(fetchurl)
+		if err != nil {
+			return resp, err
+		}
+
+		article, err := readability.FromReader(&tmp2, publishUrl)
+		resp.Body = ioutil.NopCloser(strings.NewReader(article.Content))
+	}
 	return resp, err
 
 }
@@ -115,7 +167,13 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	remurl := urlparts[0] + "//" + urlparts[1]
-	encoded_ua := base64.URLEncoding.EncodeToString([]byte(default_agent))
+	encoded_ua, err := encodeCookie(defaultCookie)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+
+	}
 	cookie, err := r.Cookie("blueProxyUserAgent")
 	if err != nil {
 		switch {
@@ -137,12 +195,18 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	decagent, err := base64.URLEncoding.DecodeString(cookie.Value)
+	decagent, err := decodeCookie(cookie.Value)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	resp, err := fetch(remurl, string(decagent))
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp, err := fetch(remurl, decagent.UserAgent, decagent.Readability)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
