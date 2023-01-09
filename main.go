@@ -17,6 +17,7 @@ import (
 
 	"github.com/flosch/pongo2/v6"
 	readability "github.com/go-shiori/go-readability"
+	"golang.org/x/time/rate"
 )
 
 func encodeCookie(c OurCookie) (string, error) {
@@ -52,6 +53,9 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 	rd := r.Form["readability"]
 	log.Println(rd)
 	ua := r.Form.Get("target_ua")
+	if !validUserAgent(ua) {
+		http.Error(w, "Agent not allowed "+ua, http.StatusForbidden)
+	}
 	var vb = false
 	if len(rd) != 0 {
 		vb = true
@@ -153,6 +157,11 @@ var tpl = pongo2.Must(pongo2.FromFile("index.html"))
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 
+	if r.Method == http.MethodPost {
+		http.Error(w, "I am not an owl", http.StatusTeapot)
+		return
+	}
+
 	if r.URL.Path == "/" {
 		err := tpl.ExecuteWriter(pongo2.Context{"useragents": UserAgents, "version": version}, w)
 
@@ -165,6 +174,9 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	if curl_mode != "" {
 		urlparts := strings.SplitN(r.URL.Path[1:], "/", 2)
+		if !validUserAgent(curl_mode) {
+			http.Error(w, "Agent not allowed "+curl_mode, http.StatusForbidden)
+		}
 		if len(urlparts) < 2 {
 			return
 		}
@@ -240,6 +252,18 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// Add rate limitin per treehouse
+func rateLimitIndex(next func(writer http.ResponseWriter, request *http.Request)) http.HandlerFunc {
+	limiter := rate.NewLimiter(rate.Limit(rateBurst), rateMax)
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if !limiter.Allow() {
+			http.Error(writer, "Enhance your calm", 420)
+			return
+		} else {
+			next(writer, request)
+		}
+	})
+}
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -249,7 +273,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/redirect", postFormHandler)
 	mux.HandleFunc("/redirect/", postFormHandler)
-	mux.HandleFunc("/", indexHandler)
+	mux.HandleFunc("/", rateLimitIndex(indexHandler))
 
 	http.ListenAndServe(":"+port, mux)
 }

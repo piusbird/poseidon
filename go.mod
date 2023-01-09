@@ -5,6 +5,9 @@ go 1.17
 require (
 	github.com/flosch/pongo2/v6 v6.0.0
 	github.com/go-shiori/go-readability v0.0.0-20220215145315-dd6828d2f09b
+	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
+	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
+
 )
 
 require (
