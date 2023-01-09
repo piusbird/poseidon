@@ -152,7 +152,7 @@ func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error
 var tpl = pongo2.Must(pongo2.FromFile("index.html"))
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.Header.Get("X-Target-User-Agent"))
+
 	if r.URL.Path == "/" {
 		err := tpl.ExecuteWriter(pongo2.Context{"useragents": UserAgents, "version": version}, w)
 
@@ -160,6 +160,30 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
+	}
+	curl_mode := r.Header.Get("X-BP-Target-UserAgent")
+
+	if curl_mode != "" {
+		urlparts := strings.SplitN(r.URL.Path[1:], "/", 2)
+		if len(urlparts) < 2 {
+			return
+		}
+
+		var mozreader = false
+
+		if r.Header.Get("X-BP-MozReader") != "" {
+			mozreader = true
+		}
+		remurl := urlparts[0] + "//" + urlparts[1]
+		resp, err := fetch(remurl, curl_mode, mozreader)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+		io.Copy(w, resp.Body)
+		return
+
 	}
 	urlparts := strings.SplitN(r.URL.Path[1:], "/", 2)
 	if len(urlparts) < 2 {
