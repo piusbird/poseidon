@@ -44,7 +44,7 @@ func decodeCookie(cookieValue string) (OurCookie, error) {
 func postFormHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 
-		http.Error(w, "Method not allowed"+r.Method, http.StatusInternalServerError)
+		http.Error(w, "Method not allowed "+r.Method, http.StatusInternalServerError)
 		return
 	}
 	r.ParseForm()
@@ -187,6 +187,11 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 			mozreader = true
 		}
 		remurl := urlparts[0] + "//" + urlparts[1]
+		_, err := validateURL(remurl)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		resp, err := fetch(remurl, curl_mode, mozreader)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -240,6 +245,16 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	_, err = validateURL(remurl)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if r.Header.Get("X-Forwarded-For") != "" {
+		log.Printf("%s: %s", r.Header.Get("X-Forwarded-For"), remurl)
+	} else {
+		log.Printf("%v: %s", r.RemoteAddr, remurl)
 	}
 
 	resp, err := fetch(remurl, decagent.UserAgent, decagent.Readability)
