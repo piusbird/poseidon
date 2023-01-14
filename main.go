@@ -97,6 +97,10 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 
 func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error) {
 
+	tpl, err := pongo2.FromString(Header)
+	if err != nil {
+		return nil, err
+	}
 	proxyURL, err := url.Parse(ourProxy)
 	if err != nil {
 		log.Println(err)
@@ -147,7 +151,14 @@ func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error
 		}
 
 		article, err := readability.FromReader(&tmp2, publishUrl)
-		resp.Body = ioutil.NopCloser(strings.NewReader(article.Content))
+		if err != nil {
+			return nil, err
+		}
+		out, err := tpl.Execute(pongo2.Context{"article": article})
+		if err != nil {
+			return nil, err
+		}
+		resp.Body = ioutil.NopCloser(strings.NewReader(out))
 	}
 	return resp, err
 
@@ -285,10 +296,12 @@ func main() {
 		port = "3000"
 	}
 
+	fs := http.FileServer(http.Dir("assets"))
 	mux := http.NewServeMux()
 	mux.HandleFunc("/redirect", postFormHandler)
 	mux.HandleFunc("/redirect/", postFormHandler)
 	mux.HandleFunc("/", rateLimitIndex(indexHandler))
+	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
 
 	http.ListenAndServe(":"+port, mux)
 }

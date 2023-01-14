@@ -19,3 +19,22 @@ var rateMax = 6
 var rateBurst = 3
 
 var defaultCookie = OurCookie{default_agent, false}
+var Header = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>{{article.Title}}</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body id="top">
+  <main>
+  <h1>{{article.Title}} </h1>
+  
+  
+  {{article.Content | safe }}
+  
+  </main> 
+  </body>
+  </html>`
