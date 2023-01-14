@@ -12,10 +12,13 @@ make
 cp miniwebproxy $appRoot
 cp -r scripts/ $appRoot
 chmod +x sign.sh
+./sign.sh
+cp intercept* $appRoot
 cd ..
 sh -c miniweb/sign.sh
 git clone https://git.piusbird.space/poseidon.git/
 cd poseidon 
 go build
 cp *.html $appRoot
+cp -r assets $appRoot
 cp poseidon $appRoot

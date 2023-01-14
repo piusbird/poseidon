@@ -4,13 +4,11 @@ RUN echo -e  "\nhttps://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/ap
 RUN apk add --update --no-cache go git make musl-dev curl openssl
 RUN mkdir -p /app/src
 WORKDIR /app/src
+ARG appRoot=/app
 COPY appbuild.sh /app/src
 RUN chmod +x appbuild.sh
 RUN ./appbuild.sh
-COPY intercept.key /app
-COPY intercept.csr /app
-COPY intercept.crt /app
-
+COPY sign.sh /app/src
 WORKDIR /
 COPY entrypoint.sh /
 RUN chmod +x entrypoint.sh
