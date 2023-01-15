@@ -154,7 +154,7 @@ func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error
 		if err != nil {
 			return nil, err
 		}
-		out, err := tpl.Execute(pongo2.Context{"article": article})
+		out, err := tpl.Execute(pongo2.Context{"article": article, "url": fetchurl})
 		if err != nil {
 			return nil, err
 		}
@@ -226,6 +226,11 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
+	_, err = validateURL(remurl)
+	if err != nil {
+		http.Error(w, err.Error()+" "+remurl, http.StatusInternalServerError)
+		return
+	}
 	cookie, err := r.Cookie("blueProxyUserAgent")
 	if err != nil {
 		switch {
@@ -240,7 +245,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 				SameSite: http.SameSiteLaxMode,
 			}
 			http.SetCookie(w, &cookie)
-			http.Error(w, "Try Again", http.StatusBadRequest)
+			http.Redirect(w, r, r.RequestURI, http.StatusSeeOther)
+			//http.Error(w, "Try again", http.StatusInternalServerError)
 		default:
 			log.Println(err)
 			http.Error(w, "server error", http.StatusInternalServerError)
@@ -257,11 +263,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	_, err = validateURL(remurl)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+
 	if r.Header.Get("X-Forwarded-For") != "" {
 		log.Printf("%s: %s", r.Header.Get("X-Forwarded-For"), remurl)
 	} else {

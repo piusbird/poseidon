@@ -18,7 +18,7 @@ type OurCookie struct {
 var rateMax = 6
 var rateBurst = 3
 
-var defaultCookie = OurCookie{default_agent, false}
+var defaultCookie = OurCookie{default_agent, true}
 var Header = `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -30,11 +30,14 @@ var Header = `<!DOCTYPE html>
   </head>
   <body id="top">
   <main>
-  <h1>{{article.Title}} </h1>
+  <h1>{{article.Title}} </h1> <br/>
+  <h3> {{article.Byline}} </h3>
   
-  
+  <img src="{{article.Image}}">  Article Images </img>
+  <hr/>
   {{article.Content | safe }}
-  
+  <hr/>
+  <footer> <b> <a href="{{url}}"> Original Source </a>  </footer>
   </main> 
   </body>
   </html>`
