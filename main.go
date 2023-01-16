@@ -94,7 +94,37 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, req, final, 302)
 
 }
+func gmiFetch(fetchurl string) (*http.Response, error) {
+	resp := http.Response{
+		Body: ioutil.NopCloser(bytes.NewBufferString("Gemini Contenet")),
+	}
+	tpl, err := pongo2.FromString(Header)
+	if err != nil {
+		return nil, err
+	}
+	rawhtml, err := gmiGet(fetchurl)
+	if err != nil {
+		return nil, err
+	}
+	uu, err := url.Parse(fetchurl)
+	if err != nil {
+		return nil, err
+	}
+	inbuf := strings.NewReader(rawhtml)
 
+	article, err := readability.FromReader(inbuf, uu)
+	out, err := tpl.Execute(pongo2.Context{"article": article, "url": fetchurl})
+	if err != nil {
+		return nil, err
+	}
+	resp.Body = ioutil.NopCloser(strings.NewReader(out))
+	return &resp, nil
+
+}
+
+// FIXME: This code is basically a pile of dung
+// Templates render where they shouldn't, miniweb should be deprecated etc, etc
+// Shpuld also move this into it's own file
 func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error) {
 
 	tpl, err := pongo2.FromString(Header)
@@ -197,8 +227,31 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-BP-MozReader") != "" {
 			mozreader = true
 		}
+		// Confusing part needed to hook up gemini starts here
+		// Basically we skip validation if it's a gemini uri and
+		// do our own thing with it
 		remurl := urlparts[0] + "//" + urlparts[1]
-		_, err := validateURL(remurl)
+		ur, err := url.Parse(remurl)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		log.Println("Honk!")
+		log.Println(ur.String())
+		if ur.Scheme == "gemini" {
+			log.Println("Honk Honk")
+			resp, err := gmiFetch(remurl)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			defer resp.Body.Close()
+			io.Copy(w, resp.Body)
+			return
+		}
+
+		_, err = validateURL(remurl)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -225,6 +278,25 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 
+	}
+	ur, err := url.Parse(remurl)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Honk!")
+	log.Println(ur.String())
+	if ur.Scheme == "gemini" {
+		log.Println("Honk Honk")
+		resp, err := gmiFetch(remurl)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		defer resp.Body.Close()
+		io.Copy(w, resp.Body)
+		return
 	}
 	_, err = validateURL(remurl)
 	if err != nil {
