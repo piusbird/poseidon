@@ -1,3 +1,29 @@
+@font-face{
+	font-family: "opendyslexic";
+	src: url('./fonts/OpenDyslexic-Regular.otf');
+	font-style: normal;
+	font-weight: normal;
+}
+@font-face{
+	font-family: "opendyslexic";
+	src: url('./fonts/OpenDyslexic-Italic.otf');
+	font-style: italic;
+	font-weight: normal;
+}
+@font-face{
+	font-family: "opendyslexic";
+	src: url('./fonts/OpenDyslexic-Bold.otf');
+	font-weight: bold;
+	font-style: normal;
+}
+@font-face{
+	font-family: "opendyslexic";
+	src: url('./fonts/OpenDyslexic-BoldItalic.otf');
+	font-weight: bold;
+	font-style: italic;
+}
+
+
 :root {
   --selection: hsla(var(--accent-color), 80%, 30%, 100%);
   --selection-light: hsla(var(--accent-color), 50%, 80%, 100%);
@@ -15,11 +41,12 @@
   --blockquote-border-light: 0.5ch solid hsla(var(--accent-color), 50%, 30%, 100%);
   
 
-  --background-color: 0;
-  --text-color: 43;
-  --accent-color: 344;
-  --font-family: monospace, monospace;
+  
+  --font-family: opendyslexic, opendyslexic;
 
+  --background-color: 236;
+  --text-color: 55;
+  --accent-color: 200;
   --width: 80ch;
   --padding: 0;
 }
@@ -111,4 +138,20 @@ footer {
       border-top: 2px solid var(--selection-light);
     }
     
+}
+/* alternate paragraph shading helps users stay
+   on track while reading. This shading is very 
+   subtle so it is not annoying, but it still 
+   helps.                                       */
+p:nth-child(even), li:nth-child(even) {
+	background-color: rgba(0,0,0, 0.03);
+}
+
+
+/* highlight text under cursor helps users focus
+   on what they are currently reading. This shading
+   is darker than the alt-paragraph shading.        */
+p:hover, li:hover {
+   background-color: rgba(0,0,0, 0.5) !important;
+
 }
