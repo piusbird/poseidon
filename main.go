@@ -181,6 +181,7 @@ func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error
 		}
 
 		article, err := readability.FromReader(&tmp2, publishUrl)
+		
 		if err != nil {
 			return nil, err
 		}
