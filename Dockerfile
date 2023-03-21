@@ -1,4 +1,4 @@
-FROM cgr.dev/chainguard/alpine-base:latest
+FROM alpine:edge
 
 RUN echo -e  "\nhttps://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
 RUN apk add --update --no-cache go git make musl-dev curl openssl
