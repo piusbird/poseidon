@@ -3,6 +3,7 @@ package main
 
 import (
 	"errors"
+	"log"
 	"net/url"
 )
 
@@ -29,5 +30,15 @@ func validateURL(strUrl string) (bool, error) {
 		return false, errors.New("Authentication unsupported")
 	}
 	return true, nil
+
+}
+func getProxyUrl(hostname string, schema string) (string, error) {
+	log.Println(schema + hostname)
+	u, err := url.Parse(schema + hostname)
+	log.Println(u.String())
+	if err != nil {
+		return "", err
+	}
+	return u.String(), nil
 
 }

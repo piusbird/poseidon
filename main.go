@@ -20,6 +20,8 @@ import (
 	"golang.org/x/time/rate"
 )
 
+var homeURL string = "http://localhost:3000"
+
 func encodeCookie(c OurCookie) (string, error) {
 	first, err := json.Marshal(c)
 	if err != nil {
@@ -110,7 +112,13 @@ func gmiFetch(fetchurl string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	inbuf := strings.NewReader(rawhtml)
+	tmpbuf := strings.NewReader(rawhtml)
+	filteredContent, err := RewriteLinks(tmpbuf, homeURL)
+	inbuf := strings.NewReader(filteredContent)
+	if err != nil {
+		log.Println("Failed filter pass on " + fetchurl)
+		inbuf = strings.NewReader(rawhtml)
+	}
 
 	article, err := readability.FromReader(inbuf, uu)
 	out, err := tpl.Execute(pongo2.Context{"article": article, "url": fetchurl})
@@ -181,10 +189,21 @@ func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error
 		}
 
 		article, err := readability.FromReader(&tmp2, publishUrl)
-		
+		tmp_content := strings.NewReader(article.Content)
+		cloneContent := strings.Clone(article.Content)
+		filteredContent, err := RewriteLinks(tmp_content, homeURL)
+		log.Println(homeURL)
+
+		article.Content = filteredContent
+		if err != nil {
+			log.Println("failed filter pass " + fetchurl)
+			article.Content = cloneContent
+		}
+
 		if err != nil {
 			return nil, err
 		}
+
 		out, err := tpl.Execute(pongo2.Context{"article": article, "url": fetchurl})
 		if err != nil {
 			return nil, err
@@ -212,6 +231,14 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	var err error
+	homeURL = "http://" + r.Host
+	log.Println(homeURL)
+	if err != nil {
+		http.Error(w, "Lost my soul", http.StatusInternalServerError)
+		return
+	}
+
 	curl_mode := r.Header.Get("X-BP-Target-UserAgent")
 
 	if curl_mode != "" {
