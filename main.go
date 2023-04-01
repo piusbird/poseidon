@@ -152,7 +152,7 @@ func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error
 	client := &http.Client{
 		Transport: transport,
 	}
-	if rdbl {
+	if rdbl || !rdbl {
 		client = &http.Client{}
 	}
 	req, err := http.NewRequest("GET", fetchurl, nil)
@@ -180,7 +180,7 @@ func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error
 		resp.Body.Close()
 		resp.Body = ioutil.NopCloser(&tmp)
 	}
-	if rdbl {
+	if rdbl || !rdbl {
 		var tmp2 bytes.Buffer
 		io.Copy(&tmp2, resp.Body)
 		publishUrl, err := url.Parse(fetchurl)

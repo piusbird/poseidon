@@ -57,6 +57,12 @@ main {
   padding: var(--padding);
   margin: auto;
 }
+/* CSS Image overflow fix courtsy of Norm Malvarma  */
+img{
+  max-width: 100%; /*contain large images to article area*/
+}
+
+
 
 @media only screen and (max-device-width: 736px) {
   main {
@@ -100,7 +106,7 @@ blockquote {
 }
 
 footer {
-  align: center;
+  text-align: center;
 }
 
 @media (prefers-color-scheme: light) {
