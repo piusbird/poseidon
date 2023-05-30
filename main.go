@@ -104,7 +104,7 @@ func gmiFetch(fetchurl string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	rawhtml, err := gmiGet(fetchurl)
+	rawhtml, err := gmiGet(fetchurl, 0)
 	if err != nil {
 		return nil, err
 	}

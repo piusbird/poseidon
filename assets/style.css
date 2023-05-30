@@ -60,6 +60,7 @@ main {
 /* CSS Image overflow fix courtsy of Norm Malvarma  */
 img{
   max-width: 100%; /*contain large images to article area*/
+  max-height: 100%;
 }
 
 
@@ -149,15 +150,15 @@ footer {
    on track while reading. This shading is very 
    subtle so it is not annoying, but it still 
    helps.                                       */
-p:nth-child(even), li:nth-child(even) {
-	background-color: rgba(0,0,0, 0.03);
-}
+ /*p:nth-child(even), li:nth-child(even) {
+	background-color: rgba(233, 230, 20, 0.824);
+} */
 
 
 /* highlight text under cursor helps users focus
    on what they are currently reading. This shading
    is darker than the alt-paragraph shading.        */
 p:hover, li:hover {
-   background-color: rgba(0,0,0, 0.5) !important;
+   background-color: rgba(233, 230, 20, 0.824) !important;
 
 }
