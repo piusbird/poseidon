@@ -9,11 +9,15 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	gemini "git.sr.ht/~adnano/go-gemini"
 	"git.sr.ht/~adnano/go-gemini/tofu"
+	"github.com/flosch/pongo2/v6"
+	"github.com/vincent-petithory/dataurl"
 )
 
 // This will assume the url has already been validated
@@ -36,12 +40,28 @@ func gmiGet(remote_url string, redirs int) (string, error) {
 	}
 	ctx := context.Background()
 	req, err := gemini.NewRequest(remote_url)
+
+	if err != nil {
+		return err.Error(), err
+	}
+
 	if err != nil {
 		return "", err
 	}
 	resp, err := client.Do(ctx, req)
+	if resp.Status == gemini.StatusNotFound {
+		return "not found", nil
+	}
+
+	log.Println("Metadata " + resp.Meta)
+	if itemIn(SupportedImagesTypes, resp.Meta) {
+
+		return genImagePage(resp, remote_url)
+
+	}
+
 	if err != nil {
-		return "Gemini Error", err
+		return err.Error(), err
 
 	}
 	defer resp.Body.Close()
@@ -88,20 +108,22 @@ func getCanonicalUrl(current url.URL, urlfrag string) (string, error) {
 	}
 	if canurl.IsAbs() == true {
 		return canurl.String(), nil
-	}
-	if strings.HasPrefix(urlfrag, "/") == true {
-		rv, err := url.JoinPath(canurl.Host, urlfrag)
+	} else if strings.HasPrefix(urlfrag, "/") {
+		newurl := url.URL(current)
+		newurl.Path = urlfrag
+		rv := newurl.String()
+
+		return rv, nil
+	} else {
+		newurl := url.URL(current)
+		cwd := filepath.Dir(newurl.Path)
+		newurl.Path, err = url.JoinPath(cwd, urlfrag)
 		if err != nil {
 			return "gemini://" + current.Hostname(), err
 		}
-		return rv, nil
+		return newurl.String(), nil
 
 	}
-	rv, err := url.JoinPath(current.String(), urlfrag)
-	if err != nil {
-		return "gemini://" + current.Hostname(), err
-	}
-	return rv, nil
 
 }
 
@@ -169,3 +191,29 @@ func (h *HTMLWriter) Finish() {
 }
 
 // End
+
+func genImagePage(response *gemini.Response, remote_url string) (string, error) {
+
+	imgtmpl, err := pongo2.FromString(ImageProlog)
+	if err != nil {
+		return err.Error(), err
+	}
+	ourimg := ImgData{}
+	ourimg.Name = remote_url
+	buf := new(bytes.Buffer)
+
+	_, err = io.Copy(buf, response.Body)
+	if err != nil {
+		return err.Error(), err
+	}
+
+	du := dataurl.New(buf.Bytes(), response.Meta)
+
+	ourimg.Image = du.String()
+	out, err := imgtmpl.Execute(pongo2.Context{"imgdata": ourimg})
+	if err != nil {
+		return err.Error(), err
+	}
+	return out, nil
+
+}

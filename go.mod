@@ -6,6 +6,7 @@ require (
 	git.sr.ht/~adnano/go-gemini v0.2.3
 	github.com/flosch/pongo2/v6 v6.0.0
 	github.com/go-shiori/go-readability v0.0.0-20220215145315-dd6828d2f09b
+	github.com/vincent-petithory/dataurl v1.0.0
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 
