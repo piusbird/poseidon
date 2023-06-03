@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -15,9 +14,13 @@ import (
 	"os"
 	"strings"
 
+	"net/http/pprof"
+
 	"github.com/flosch/pongo2/v6"
 	readability "github.com/go-shiori/go-readability"
+
 	"golang.org/x/time/rate"
+	"piusbird.space/poseidon/nuparser"
 )
 
 var homeURL string = "http://localhost:3000"
@@ -133,28 +136,20 @@ func gmiFetch(fetchurl string) (*http.Response, error) {
 // FIXME: This code is basically a pile of dung
 // Templates render where they shouldn't, miniweb should be deprecated etc, etc
 // Shpuld also move this into it's own file
-func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error) {
+func fetch(fetchurl string, user_agent string, parser_select bool) (*http.Response, error) {
 
 	tpl, err := pongo2.FromString(Header)
 	if err != nil {
 		return nil, err
 	}
-	proxyURL, err := url.Parse(ourProxy)
+
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
-	transport := &http.Transport{
-		Proxy:           http.ProxyURL(proxyURL),
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
 
-	client := &http.Client{
-		Transport: transport,
-	}
-	if rdbl || !rdbl {
-		client = &http.Client{}
-	}
+	client := &http.Client{}
+
 	req, err := http.NewRequest("GET", fetchurl, nil)
 	if err != nil {
 		log.Println(err)
@@ -169,6 +164,7 @@ func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Accept-Encoding", "gzip")
 	resp, err := client.Do(req)
+	resp.Request = nil // just in case
 	if err != nil {
 		return nil, err
 	}
@@ -180,43 +176,62 @@ func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error
 		resp.Body.Close()
 		resp.Body = ioutil.NopCloser(&tmp)
 	}
-	if rdbl || !rdbl {
-		var tmp2 bytes.Buffer
-		io.Copy(&tmp2, resp.Body)
-		publishUrl, err := url.Parse(fetchurl)
-		if err != nil {
-			return resp, err
-		}
-
-		article, err := readability.FromReader(&tmp2, publishUrl)
-		tmp_content := strings.NewReader(article.Content)
-		cloneContent := strings.Clone(article.Content)
-		filteredContent, err := RewriteLinks(tmp_content, homeURL)
-		log.Println(homeURL)
-
-		article.Content = filteredContent
-		if err != nil {
-			log.Println("failed filter pass " + fetchurl)
-			article.Content = cloneContent
-		}
-
-		if err != nil {
-			return nil, err
-		}
-
-		out, err := tpl.Execute(pongo2.Context{"article": article, "url": fetchurl})
-		if err != nil {
-			return nil, err
-		}
-		resp.Body = ioutil.NopCloser(strings.NewReader(out))
+	var tmp2 bytes.Buffer
+	io.Copy(&tmp2, resp.Body)
+	publishUrl, err := url.Parse(fetchurl)
+	if err != nil {
+		return resp, err
 	}
+
+	var article GenaricArticle
+
+	if !parser_select {
+		raw_article, err := readability.FromReader(&tmp2, publishUrl)
+		if err != nil {
+			return nil, err
+		}
+		article = GenaricArticle{}
+		article.Byline = raw_article.Byline
+		article.Content = raw_article.Content
+		article.Title = raw_article.Title
+		article.Length = raw_article.Length
+		article.Image = raw_article.Image
+	} else {
+		raw_article, err := nuparser.FromReader(&tmp2)
+		if err != nil {
+			return nil, err
+		}
+		article = GenaricArticle{}
+		article.Byline = raw_article.Byline
+		article.Content = raw_article.Content
+		article.Title = raw_article.Title
+		article.Length = raw_article.Length
+		article.Image = raw_article.Image
+	}
+
+	tmp_content := strings.NewReader(article.Content)
+	backupContent := strings.Clone(article.Content)
+	filteredContent, err := RewriteLinks(tmp_content, homeURL)
+	log.Println(homeURL)
+
+	article.Content = filteredContent
+	if err != nil {
+		log.Println("failed filter pass " + fetchurl)
+		article.Content = backupContent
+	}
+
+	out, err := tpl.Execute(pongo2.Context{"article": article, "url": fetchurl})
+	if err != nil {
+		return nil, err
+	}
+	resp.Body = ioutil.NopCloser(strings.NewReader(out))
+
 	return resp, err
 
 }
 
-var tpl = pongo2.Must(pongo2.FromFile("index.html"))
-
 func indexHandler(w http.ResponseWriter, r *http.Request) {
+	var tpl = pongo2.Must(pongo2.FromFile("index.html"))
 
 	if r.Method == http.MethodPost {
 		http.Error(w, "I am not an owl", http.StatusTeapot)
@@ -258,7 +273,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		// Confusing part needed to hook up gemini starts here
 		// Basically we skip validation if it's a gemini uri and
 		// do our own thing with it
-		remurl := urlparts[0] + "//" + urlparts[1]
+		remurl := urlparts[0] + "//" + urlparts[1] + r.URL.RawQuery
 		ur, err := url.Parse(remurl)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -403,6 +418,11 @@ func main() {
 	mux.HandleFunc("/redirect", postFormHandler)
 	mux.HandleFunc("/redirect/", postFormHandler)
 	mux.HandleFunc("/", rateLimitIndex(indexHandler))
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
 
 	http.ListenAndServe(":"+port, mux)

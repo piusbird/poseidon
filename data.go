@@ -1,6 +1,6 @@
 package main
 
-var version = "bf27190]: Pizza doesn't go in a salad spinner"
+var version = "bf27190: Pizza doesn't go in a salad spinner"
 var UserAgents = map[string]string{
 	"Desktop":          "Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0",
 	"Googlebot Mobile": "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html",
@@ -64,3 +64,12 @@ var ImageProlog = `<!DOCTYPE html>
   
   `
 var SupportedImagesTypes = [...]string{"image/jpeg", "image/png", "image/gif"}
+var YTProxy = "vid.puffyan.us"
+
+type GenaricArticle struct {
+	Title   string
+	Byline  string
+	Content string
+	Image   string
+	Length  int
+}
