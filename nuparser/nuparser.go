@@ -1,6 +1,7 @@
 package nuparser
 
 import (
+	"fmt"
 	"io"
 	"strings"
 
@@ -22,7 +23,7 @@ type ParserResult struct {
 var allowdTags = []string{
 	"a", "b", "base", "blockquote", "body", "br", "center", "code", "dd",
 	"dfn", "div", "dl", "dt", "em", "h1", "h2", "h3", "h4", "h5", "h6",
-	"head", "hr", "html", "i", "img", "kbd", "li", "link", "meta", "ol",
+	"head", "hr", "html", "i", "img", "kbd", "li", "meta", "ol",
 	"p", "pre", "samp", "title", "ul", "var", "article",
 	"audio", "span", "div", "section", "main", "aside",
 }
@@ -49,64 +50,68 @@ func Parse(rdr io.Reader) (ParserResult, error) {
 	}
 	rv := ParserResult{}
 	rv.EntryPoint = doc
-	fullrender := reconstructHTML(doc)
+	fullrender := buildRestrictedHTML(doc)
 	rv.Result = fullrender
 	return rv, nil
 
 }
-func reconstructHTML(n *html.Node) string {
+func buildRestrictedHTML(n *html.Node) string {
 	var sb strings.Builder
 
 	// Reconstruct the node
-	reconstructNodeHTML(&sb, n)
+	emitNode(&sb, n)
 
 	// Reconstruct child nodes
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		reconstructNodeHTML(&sb, c)
+		emitNode(&sb, c)
 	}
 
 	return sb.String()
 }
 
-func reconstructNodeHTML(sb *strings.Builder, n *html.Node) {
+func emitNode(sb *strings.Builder, n *html.Node) {
 	switch n.Type {
 	case html.ElementNode:
 		// Reconstruct element node
-		reconstructElementNodeHTML(sb, n)
+		emitElementNode(sb, n)
 	case html.TextNode:
 		// Reconstruct text node
-		reconstructTextNodeHTML(sb, n)
+		emitTextNode(sb, n)
 	}
 }
 
-func reconstructElementNodeHTML(sb *strings.Builder, n *html.Node) {
-	// Check if the element tag is available in our reduced feature set
-	if isAllowedTag(n.Data) {
-		// Reconstruct element tag
-		sb.WriteString("<")
-		sb.WriteString(n.Data)
-		sb.WriteString(">")
-
-		// Reconstruct child nodes
+func emitElementNode(sb *strings.Builder, n *html.Node) {
+	// If the tag is not allowed emit a blank  but traverse it's children for
+	// allowed members, in case we've hit some dumb html5ish container element
+	// Which seem to be proliferating thanks to the "living standard"
+	if !isAllowedTag(n.Data) {
+		sb.WriteString("")
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			reconstructNodeHTML(sb, c)
+			emitNode(sb, c)
 		}
+		return
 
-		// Reconstruct closing tag
-		sb.WriteString("</")
-		sb.WriteString(n.Data)
-		sb.WriteString(">")
 	}
+	// Allowed tags get emited traversed and then closed
+	sb.WriteString(TagToString(n))
+
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		emitNode(sb, c)
+	}
+
+	// Reconstruct closing tag
+	sb.WriteString("</")
+	sb.WriteString(n.Data)
+	sb.WriteString(">")
 }
 
-func reconstructTextNodeHTML(sb *strings.Builder, n *html.Node) {
-	// Reconstruct text content
+func emitTextNode(sb *strings.Builder, n *html.Node) {
+	// Just emit the text between the element tags as is
 	sb.WriteString(n.Data)
 }
 
 func isAllowedTag(tagName string) bool {
 
-	// Check if the tag name is in the HTML2 tag list
 	for _, tag := range allowdTags {
 		if tag == tagName {
 			return true
@@ -114,6 +119,20 @@ func isAllowedTag(tagName string) bool {
 	}
 
 	return false
+}
+
+func TagToString(n *html.Node) string {
+	var sb strings.Builder
+	sb.WriteString("<")
+	sb.WriteString(n.Data)
+	for _, attr := range n.Attr {
+		if attr.Key == "style" {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf(" %s=\"%s\"", attr.Key, attr.Val))
+	}
+	sb.WriteString(">")
+	return sb.String()
 }
 func extractTitle(n *html.Node) string {
 	if n.Type == html.ElementNode && n.Data == "title" {
