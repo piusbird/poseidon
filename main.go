@@ -152,6 +152,8 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	origQuery, _ := url.ParseQuery(original.URL.RawQuery)
 	if _, ok := origQuery["nuparser"]; !ok {
 		newQueryString.Set("nuparser", "1")
+	} else {
+		newQueryString.Del("nuparser")
 	}
 	u.RawQuery = newQueryString.Encode()
 	lightswitch := u.String()
@@ -398,7 +400,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var parser_select bool
 	if _, ok := queryParams["nuparser"]; !ok {
-		parser_select = decagent.Readability
+		parser_select = !decagent.Readability
 	} else {
 		parser_select = ok
 	}
@@ -437,6 +439,7 @@ func main() {
 	mux.HandleFunc("/redirect", postFormHandler)
 	mux.HandleFunc("/redirect/", postFormHandler)
 	mux.HandleFunc("/", rateLimitIndex(indexHandler))
+
 	if debugmode != "" {
 
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
