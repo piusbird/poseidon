@@ -98,25 +98,27 @@ func emitElementNode(sb *strings.Builder, n *html.Node) {
 		sb.WriteString(closingTagString(n.Data))
 
 	} else {
-		// If the tag is not allowed emit nothing.. and here we have to break the spec a bit
-		// Usually the spec would say traverse the children for allowed or understood tags, but
-		// As we are subseting this for a browser that is html5 capiable, we must be
-		// careful lest we get something unexpected in TextNodes
-		// working on it though
+		// If the tag is not allowed emit nothing.. Traverse it's children for allowed elements
+		// Conforms to the spec whooo
 
 		sb.WriteString("")
-
-		// Reconstruct closing tag
-		//sb.WriteString(closingTagString(n.Data))
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			emitNode(sb, c)
+		}
 
 	}
 
 }
 
 func emitTextNode(sb *strings.Builder, n *html.Node) {
-	// Just emit the text between the element tags as is
+	// only emit the text of a node if it's parent element would be allowed
+	// this allows us show text and links, and images that may be _hiding_ inside forbidden elements
+	// without leaking stuff that we don't want
+	if isAllowedTag(n.Parent.Data) {
+		sb.WriteString(n.Data)
 
-	sb.WriteString(n.Data)
+	}
+
 }
 
 func isAllowedTag(tagName string) bool {
