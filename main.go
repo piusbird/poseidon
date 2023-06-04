@@ -136,17 +136,25 @@ func gmiFetch(fetchurl string) (*http.Response, error) {
 // FIXME: This code is basically a pile of dung
 // Templates render where they shouldn't, miniweb should be deprecated etc, etc
 // Shpuld also move this into it's own file
-func fetch(fetchurl string, user_agent string, parser_select bool) (*http.Response, error) {
+func fetch(fetchurl string, user_agent string, parser_select bool, original *http.Request) (*http.Response, error) {
 
 	tpl, err := pongo2.FromString(Header)
 	if err != nil {
 		return nil, err
-	}
 
+	}
+	u, err := url.Parse(original.RequestURI)
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
+	newQueryString := u.Query()
+	origQuery, _ := url.ParseQuery(original.URL.RawQuery)
+	if _, ok := origQuery["nuparser"]; !ok {
+		newQueryString.Set("nuparser", "1")
+	}
+	u.RawQuery = newQueryString.Encode()
+	lightswitch := u.String()
 
 	client := &http.Client{}
 
@@ -220,7 +228,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool) (*http.Respon
 		article.Content = backupContent
 	}
 
-	out, err := tpl.Execute(pongo2.Context{"article": article, "url": fetchurl})
+	out, err := tpl.Execute(pongo2.Context{"article": article, "url": fetchurl, "switchurl": lightswitch})
 	if err != nil {
 		return nil, err
 	}
@@ -246,6 +254,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	queryParams, _ := url.ParseQuery(r.URL.RawQuery)
 	var err error
 	homeURL = "http://" + r.Host
 	log.Println(homeURL)
@@ -273,7 +282,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		// Confusing part needed to hook up gemini starts here
 		// Basically we skip validation if it's a gemini uri and
 		// do our own thing with it
-		remurl := urlparts[0] + "//" + urlparts[1] + r.URL.RawQuery
+
+		remurl := urlparts[0] + "//" + urlparts[1]
 		ur, err := url.Parse(remurl)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -283,7 +293,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("Honk!")
 		log.Println(ur.String())
 		if ur.Scheme == "gemini" {
-			log.Println("Honk Honk")
+			remurl += r.URL.RawQuery
 			resp, err := gmiFetch(remurl)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -299,7 +309,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		resp, err := fetch(remurl, curl_mode, mozreader)
+
+		resp, err := fetch(remurl, curl_mode, mozreader, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -331,7 +342,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Honk!")
 	log.Println(ur.String())
 	if ur.Scheme == "gemini" {
-		log.Println("Honk Honk")
+		remurl += r.URL.RawQuery
 		resp, err := gmiFetch(remurl)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -341,6 +352,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		io.Copy(w, resp.Body)
 		return
 	}
+
 	_, err = validateURL(remurl)
 	if err != nil {
 		http.Error(w, err.Error()+" "+remurl, http.StatusInternalServerError)
@@ -384,8 +396,14 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Printf("%v: %s", r.RemoteAddr, remurl)
 	}
+	var parser_select bool
+	if _, ok := queryParams["nuparser"]; !ok {
+		parser_select = decagent.Readability
+	} else {
+		parser_select = ok
+	}
 
-	resp, err := fetch(remurl, decagent.UserAgent, decagent.Readability)
+	resp, err := fetch(remurl, decagent.UserAgent, parser_select, r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -415,14 +433,18 @@ func main() {
 
 	fs := http.FileServer(http.Dir("assets"))
 	mux := http.NewServeMux()
+	debugmode := os.Getenv("DEBUG")
 	mux.HandleFunc("/redirect", postFormHandler)
 	mux.HandleFunc("/redirect/", postFormHandler)
 	mux.HandleFunc("/", rateLimitIndex(indexHandler))
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	if debugmode != "" {
+
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	}
 	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
 
 	http.ListenAndServe(":"+port, mux)

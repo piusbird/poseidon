@@ -35,13 +35,14 @@ var Header = `<!DOCTYPE html>
   <body id="top">
   <main>
   <h1>{{article.Title}} </h1> <br/>
-  <h3> {{article.Byline}} </h3>
+  <h3> {{article.Byline}} </h3> <br/>
+  <a href={{switchurl}}> Switch Engines </a>
   
   <img src="{{article.Image}}">  Article Images </img>
   <hr/>
   {{article.Content | safe }}
   <hr/>
-  <footer> <b> <a href="{{url}}"> Original Source </a>  </footer>
+  <footer> <b> <a href="{{url}}"> Original Source </a> -  </footer>
   </main> 
   </body>
   </html>`
