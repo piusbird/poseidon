@@ -65,7 +65,6 @@ func buildRestrictedHTML(n *html.Node) string {
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		emitNode(&sb, c)
 	}
-
 	return sb.String()
 }
 
@@ -81,28 +80,31 @@ func emitNode(sb *strings.Builder, n *html.Node) {
 }
 
 func emitElementNode(sb *strings.Builder, n *html.Node) {
-	// If the tag is not allowed emit a blank  but traverse it's children for
-	// allowed members, in case we've hit some dumb html5ish container element
-	// Which seem to be proliferating thanks to the "living standard"
-	if !isAllowedTag(n.Data) {
-		sb.WriteString("")
+	// Allowed tags get emited traversed and then closed
+	if isAllowedTag(n.Data) {
+		sb.WriteString(TagToString(n))
+
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			emitNode(sb, c)
 		}
-		return
+
+		// Reconstruct closing tag
+		sb.WriteString(closingTagString(n.Data))
+
+	} else {
+		// If the tag is not allowed emit nothing but traverse it's children for
+		// allowed members, in case we've hit some dumb html5ish container element
+		// Which seem to be proliferating thanks to the "living standard"
+		//for c := n.FirstChild; c != nil; c = c.NextSibling {
+		//	emitNode(sb, c)
+		//}
+		sb.WriteString("")
+
+		// Reconstruct closing tag
+		//sb.WriteString(closingTagString(n.Data))
 
 	}
-	// Allowed tags get emited traversed and then closed
-	sb.WriteString(TagToString(n))
 
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		emitNode(sb, c)
-	}
-
-	// Reconstruct closing tag
-	sb.WriteString("</")
-	sb.WriteString(n.Data)
-	sb.WriteString(">")
 }
 
 func emitTextNode(sb *strings.Builder, n *html.Node) {
@@ -134,6 +136,10 @@ func TagToString(n *html.Node) string {
 	sb.WriteString(">")
 	return sb.String()
 }
+func closingTagString(tagName string) string {
+	return fmt.Sprintf("</%s>", tagName)
+}
+
 func extractTitle(n *html.Node) string {
 	if n.Type == html.ElementNode && n.Data == "title" {
 
