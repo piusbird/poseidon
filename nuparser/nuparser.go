@@ -98,12 +98,12 @@ func emitElementNode(sb *strings.Builder, n *html.Node) {
 		sb.WriteString(closingTagString(n.Data))
 
 	} else {
-		// If the tag is not allowed emit nothing but traverse it's children for
-		// allowed members, in case we've hit some dumb html5ish container element
-		// Which seem to be proliferating thanks to the "living standard"
-		//for c := n.FirstChild; c != nil; c = c.NextSibling {
-		//	emitNode(sb, c)
-		//}
+		// If the tag is not allowed emit nothing.. and here we have to break the spec a bit
+		// Usually the spec would say traverse the children for allowed or understood tags, but
+		// As we are subseting this for a browser that is html5 capiable, we must be
+		// careful lest we get something unexpected in TextNodes
+		// working on it though
+
 		sb.WriteString("")
 
 		// Reconstruct closing tag
@@ -115,6 +115,7 @@ func emitElementNode(sb *strings.Builder, n *html.Node) {
 
 func emitTextNode(sb *strings.Builder, n *html.Node) {
 	// Just emit the text between the element tags as is
+
 	sb.WriteString(n.Data)
 }
 
