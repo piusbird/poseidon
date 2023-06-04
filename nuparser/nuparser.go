@@ -139,6 +139,8 @@ func TagToString(n *html.Node) string {
 	for _, attr := range n.Attr {
 		if attr.Key == "style" {
 			continue
+		} else if strings.HasPrefix(attr.Key, "on") {
+			continue
 		}
 		sb.WriteString(fmt.Sprintf(" %s=\"%s\"", attr.Key, attr.Val))
 	}
