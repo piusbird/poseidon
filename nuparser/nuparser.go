@@ -3,6 +3,7 @@ package nuparser
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -65,7 +66,12 @@ func buildRestrictedHTML(n *html.Node) string {
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		emitNode(&sb, c)
 	}
-	return sb.String()
+	blankfinder, err := regexp.Compile("\n\n+")
+	if err != nil {
+		return sb.String()
+	}
+	s := blankfinder.ReplaceAllString(sb.String(), "\n")
+	return strings.TrimSpace(s)
 }
 
 func emitNode(sb *strings.Builder, n *html.Node) {
