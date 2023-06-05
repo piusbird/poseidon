@@ -33,14 +33,16 @@ func RewriteLinks(reqBody io.Reader, urlPrefix string) (string, error) {
 			// Get the value of the href attribute
 			for i, attr := range n.Attr {
 				if attr.Key == "href" {
+					if !strings.HasPrefix(attr.Val, "#") {
 
-					// Replace the value of the href attribute with the proxy URL
-					newurl, _ := url.JoinPath(u.String(), attr.Val)
-					if strings.Contains(attr.Val, "youtube.com") == true {
-						newurl = rewriteYT(attr.Val)
+						// Replace the value of the href attribute with the proxy URL
+						newurl, _ := url.JoinPath(u.String(), attr.Val)
+						if strings.Contains(attr.Val, "youtube.com") {
+							newurl = rewriteYT(attr.Val)
+						}
+
+						n.Attr[i].Val = newurl
 					}
-
-					n.Attr[i].Val = newurl
 					break
 				}
 			}
