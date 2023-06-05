@@ -167,6 +167,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	lightswitch := u.String()
 
 	client := &http.Client{}
+	client.Transport = http.DefaultTransport
 
 	req, err := http.NewRequest("GET", fetchurl, nil)
 	if err != nil {
@@ -182,13 +183,14 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Accept-Encoding", "gzip")
 	resp, err := client.Do(req)
+
 	resp.Request = nil // just in case
 	if err != nil {
 		return nil, err
 	}
 
 	if strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
-		contentSize, err := strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
+		contentSize := resp.ContentLength
 		if err != nil {
 			if errors.Is(err, strconv.ErrSyntax) {
 				contentSize = maxBodySize
@@ -199,6 +201,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		if contentSize > maxBodySize {
 			return nil, errors.New("response body to large")
 		}
+
 		decompBuffMax := maxBodySize * 2
 		log.Println("dezipping")
 		var tmp bytes.Buffer
