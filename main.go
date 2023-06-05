@@ -191,21 +191,30 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		contentSize, err := strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
 		if err != nil {
 			if errors.Is(err, strconv.ErrSyntax) {
-				contentSize = int64(maxBodySize)
+				contentSize = maxBodySize
 			} else {
 				return nil, errors.New("invalid content length " + err.Error())
 			}
 		}
-		if contentSize > int64(maxBodySize) {
+		if contentSize > maxBodySize {
 			return nil, errors.New("response body to large")
 		}
+		decompBuffMax := maxBodySize * 2
 		log.Println("dezipping")
 		var tmp bytes.Buffer
 		gz, _ := gzip.NewReader(resp.Body)
 
-		_, err = io.CopyN(&tmp, gz, contentSize)
-		if err != nil {
-			return nil, err
+		for {
+			var bytesRead int64 = 0
+			n, err := io.CopyN(&tmp, gz, 4096)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			bytesRead += n
+			if bytesRead > decompBuffMax {
+				return nil, errors.New("decompression failed")
+			}
+
 		}
 
 		err = resp.Body.Close()
@@ -273,12 +282,11 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	var tpl = pongo2.Must(pongo2.FromFile("index.html"))
-
 	if r.Method == http.MethodPost {
 		http.Error(w, "I am not an owl", http.StatusTeapot)
 		return
 	}
+	var tpl = pongo2.Must(pongo2.FromFile("index.html"))
 
 	if r.URL.Path == "/" {
 		err := tpl.ExecuteWriter(pongo2.Context{"useragents": UserAgents, "version": version}, w)
