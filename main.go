@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -88,7 +87,7 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   3600,
 		HttpOnly: true,
 		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 	}
 	http.SetCookie(w, &cookie)
 	log.Println(final)
@@ -151,6 +150,11 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		return nil, err
 
 	}
+	tr := &http.Transport{
+		MaxIdleConns:       10,
+		IdleConnTimeout:    30 * time.Second,
+		DisableCompression: false,
+	}
 	u, err := url.Parse(original.RequestURI)
 	if err != nil {
 		log.Println(err)
@@ -167,7 +171,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	lightswitch := u.String()
 
 	client := &http.Client{}
-	client.Transport = http.DefaultTransport
+	client.Transport = tr
 
 	req, err := http.NewRequest("GET", fetchurl, nil)
 	if err != nil {
@@ -183,29 +187,28 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Accept-Encoding", "gzip")
 	resp, err := client.Do(req)
-
-	resp.Request = nil // just in case
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
+	if err != nil {
+		return nil, err
+	}
+	var tmp bytes.Buffer
 	if strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
+		log.Println("Yes we gziped")
+
+		gz, _ := gzip.NewReader(resp.Body)
+
 		contentSize := resp.ContentLength
-		if err != nil {
-			if errors.Is(err, strconv.ErrSyntax) {
-				contentSize = maxBodySize
-			} else {
-				return nil, errors.New("invalid content length " + err.Error())
-			}
-		}
+
 		if contentSize > maxBodySize {
 			return nil, errors.New("response body to large")
 		}
 
 		decompBuffMax := maxBodySize * 2
 		log.Println("dezipping")
-		var tmp bytes.Buffer
-		gz, _ := gzip.NewReader(resp.Body)
 
 		for {
 			var bytesRead int64 = 0
@@ -224,12 +227,14 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		if err != nil {
 			return nil, err
 		}
+
 		resp.Body = io.NopCloser(&tmp)
-	}
-	var tmp2 bytes.Buffer
-	_, err = io.Copy(&tmp2, resp.Body)
-	if err != nil {
-		return nil, err
+	} else {
+		_, err = io.Copy(&tmp, resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		resp.Body.Close()
 	}
 
 	publishUrl, err := url.Parse(fetchurl)
@@ -240,7 +245,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	var article GenaricArticle
 
 	if parser_select {
-		raw_article, err := readability.FromReader(&tmp2, publishUrl)
+		raw_article, err := readability.FromReader(&tmp, publishUrl)
 		if err != nil {
 			return nil, err
 		}
@@ -251,7 +256,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		article.Length = raw_article.Length
 		article.Image = raw_article.Image
 	} else {
-		raw_article, err := nuparser.FromReader(&tmp2)
+		raw_article, err := nuparser.FromReader(&tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -266,7 +271,6 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	tmp_content := strings.NewReader(article.Content)
 	backupContent := strings.Clone(article.Content)
 	filteredContent, err := RewriteLinks(tmp_content, homeURL)
-	log.Println(homeURL)
 
 	article.Content = filteredContent
 	if err != nil {
