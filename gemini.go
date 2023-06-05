@@ -94,7 +94,10 @@ func gmiGet(remote_url string, redirs int) (string, error) {
 	}
 	output := bytes.NewBufferString("")
 	hw := HTMLWriter{out: output}
-	gemini.ParseLines(resp.Body, hw.Handle)
+	err = gemini.ParseLines(resp.Body, hw.Handle)
+	if err != nil {
+		return "", err
+	}
 	return output.String(), nil
 
 }

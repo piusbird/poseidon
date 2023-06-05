@@ -11,7 +11,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"net/http/pprof"
 
@@ -51,7 +53,11 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed "+r.Method, http.StatusInternalServerError)
 		return
 	}
-	r.ParseForm()
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	log.Println(r.Form)
 	target_url := r.Form.Get("target_url")
 	rd := r.Form["readability"]
@@ -180,16 +186,40 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	if err != nil {
 		return nil, err
 	}
+
 	if strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
+		contentSize, err := strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
+		if err != nil {
+			if errors.Is(err, strconv.ErrSyntax) {
+				contentSize = int64(maxBodySize)
+			} else {
+				return nil, errors.New("invalid content length " + err.Error())
+			}
+		}
+		if contentSize > int64(maxBodySize) {
+			return nil, errors.New("response body to large")
+		}
 		log.Println("dezipping")
 		var tmp bytes.Buffer
 		gz, _ := gzip.NewReader(resp.Body)
-		io.Copy(&tmp, gz)
-		resp.Body.Close()
+
+		_, err = io.CopyN(&tmp, gz, contentSize)
+		if err != nil {
+			return nil, err
+		}
+
+		err = resp.Body.Close()
+		if err != nil {
+			return nil, err
+		}
 		resp.Body = io.NopCloser(&tmp)
 	}
 	var tmp2 bytes.Buffer
-	io.Copy(&tmp2, resp.Body)
+	_, err = io.Copy(&tmp2, resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
 	publishUrl, err := url.Parse(fetchurl)
 	if err != nil {
 		return resp, err
@@ -304,7 +334,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			defer resp.Body.Close()
-			io.Copy(w, resp.Body)
+			_, err = io.Copy(w, resp.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 			return
 		}
 
@@ -320,7 +353,11 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer resp.Body.Close()
-		io.Copy(w, resp.Body)
+		_, err = io.Copy(w, resp.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		return
 
 	}
@@ -353,7 +390,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer resp.Body.Close()
-		io.Copy(w, resp.Body)
+		_, err = io.Copy(w, resp.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -413,7 +453,11 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	io.Copy(w, resp.Body)
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 }
 
@@ -430,10 +474,16 @@ func rateLimitIndex(next func(writer http.ResponseWriter, request *http.Request)
 	})
 }
 func main() {
+	srv := &http.Server{
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "3000"
 	}
+	srv.Addr = ":" + port
 
 	fs := http.FileServer(http.Dir("assets"))
 	mux := http.NewServeMux()
@@ -451,6 +501,10 @@ func main() {
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
+	srv.Handler = mux
 
-	http.ListenAndServe(":"+port, mux)
+	err := srv.ListenAndServe()
+	if err != nil {
+		panic(err)
+	}
 }
