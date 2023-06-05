@@ -60,9 +60,9 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 	if !validUserAgent(ua) {
 		http.Error(w, "Agent not allowed "+ua, http.StatusForbidden)
 	}
-	var vb = false
+	vb := ArcParser
 	if len(rd) != 0 {
-		vb = true
+		vb = NUParser
 	}
 	ckMstr := OurCookie{ua, vb}
 
@@ -152,10 +152,10 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	}
 	newQueryString := u.Query()
 	origQuery, _ := url.ParseQuery(original.URL.RawQuery)
-	if _, ok := origQuery["nuparser"]; !ok {
-		newQueryString.Set("nuparser", "1")
+	if _, ok := origQuery["engine"]; !ok {
+		newQueryString.Set("engine", "1")
 	} else {
-		newQueryString.Del("nuparser")
+		newQueryString.Del("engine")
 	}
 	u.RawQuery = newQueryString.Encode()
 	lightswitch := u.String()
@@ -197,7 +197,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 
 	var article GenaricArticle
 
-	if !parser_select {
+	if parser_select {
 		raw_article, err := readability.FromReader(&tmp2, publishUrl)
 		if err != nil {
 			return nil, err
@@ -401,10 +401,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("%v: %s", r.RemoteAddr, remurl)
 	}
 	var parser_select bool
-	if _, ok := queryParams["nuparser"]; !ok {
-		parser_select = !decagent.Readability
+	if _, ok := queryParams["engine"]; !ok {
+		parser_select = !bool(decagent.Parser)
 	} else {
-		parser_select = ok
+		parser_select = bool(decagent.Parser)
 	}
 
 	resp, err := fetch(remurl, decagent.UserAgent, parser_select, r)
