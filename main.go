@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"net/http/pprof"
 
@@ -51,7 +52,11 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed "+r.Method, http.StatusInternalServerError)
 		return
 	}
-	r.ParseForm()
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	log.Println(r.Form)
 	target_url := r.Form.Get("target_url")
 	rd := r.Form["readability"]
@@ -82,7 +87,7 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   3600,
 		HttpOnly: true,
 		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 	}
 	http.SetCookie(w, &cookie)
 	log.Println(final)
@@ -145,6 +150,11 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		return nil, err
 
 	}
+	tr := &http.Transport{
+		MaxIdleConns:       10,
+		IdleConnTimeout:    30 * time.Second,
+		DisableCompression: false,
+	}
 	u, err := url.Parse(original.RequestURI)
 	if err != nil {
 		log.Println(err)
@@ -161,6 +171,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	lightswitch := u.String()
 
 	client := &http.Client{}
+	client.Transport = tr
 
 	req, err := http.NewRequest("GET", fetchurl, nil)
 	if err != nil {
@@ -176,20 +187,56 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Accept-Encoding", "gzip")
 	resp, err := client.Do(req)
-	resp.Request = nil // just in case
 	if err != nil {
 		return nil, err
 	}
-	if strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
-		log.Println("dezipping")
-		var tmp bytes.Buffer
-		gz, _ := gzip.NewReader(resp.Body)
-		io.Copy(&tmp, gz)
-		resp.Body.Close()
-		resp.Body = io.NopCloser(&tmp)
+	defer resp.Body.Close()
+
+	if err != nil {
+		return nil, err
 	}
-	var tmp2 bytes.Buffer
-	io.Copy(&tmp2, resp.Body)
+	var tmp bytes.Buffer
+	if strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
+		log.Println("Yes we gziped")
+
+		gz, _ := gzip.NewReader(resp.Body)
+
+		contentSize := resp.ContentLength
+
+		if contentSize > maxBodySize {
+			return nil, errors.New("response body to large")
+		}
+
+		decompBuffMax := maxBodySize * 2
+		log.Println("dezipping")
+
+		for {
+			var bytesRead int64 = 0
+			n, err := io.CopyN(&tmp, gz, 4096)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			bytesRead += n
+			if bytesRead > decompBuffMax {
+				return nil, errors.New("decompression failed")
+			}
+
+		}
+
+		err = resp.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+
+		resp.Body = io.NopCloser(&tmp)
+	} else {
+		_, err = io.Copy(&tmp, resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		resp.Body.Close()
+	}
+
 	publishUrl, err := url.Parse(fetchurl)
 	if err != nil {
 		return resp, err
@@ -198,7 +245,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	var article GenaricArticle
 
 	if parser_select {
-		raw_article, err := readability.FromReader(&tmp2, publishUrl)
+		raw_article, err := readability.FromReader(&tmp, publishUrl)
 		if err != nil {
 			return nil, err
 		}
@@ -209,7 +256,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		article.Length = raw_article.Length
 		article.Image = raw_article.Image
 	} else {
-		raw_article, err := nuparser.FromReader(&tmp2)
+		raw_article, err := nuparser.FromReader(&tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -224,7 +271,6 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	tmp_content := strings.NewReader(article.Content)
 	backupContent := strings.Clone(article.Content)
 	filteredContent, err := RewriteLinks(tmp_content, homeURL)
-	log.Println(homeURL)
 
 	article.Content = filteredContent
 	if err != nil {
@@ -243,12 +289,11 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	var tpl = pongo2.Must(pongo2.FromFile("index.html"))
-
 	if r.Method == http.MethodPost {
 		http.Error(w, "I am not an owl", http.StatusTeapot)
 		return
 	}
+	var tpl = pongo2.Must(pongo2.FromFile("index.html"))
 
 	if r.URL.Path == "/" {
 		err := tpl.ExecuteWriter(pongo2.Context{"useragents": UserAgents, "version": version}, w)
@@ -304,7 +349,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			defer resp.Body.Close()
-			io.Copy(w, resp.Body)
+			_, err = io.Copy(w, resp.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 			return
 		}
 
@@ -320,7 +368,11 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer resp.Body.Close()
-		io.Copy(w, resp.Body)
+		_, err = io.Copy(w, resp.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		return
 
 	}
@@ -353,7 +405,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer resp.Body.Close()
-		io.Copy(w, resp.Body)
+		_, err = io.Copy(w, resp.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -413,7 +468,11 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	io.Copy(w, resp.Body)
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 }
 
@@ -430,10 +489,16 @@ func rateLimitIndex(next func(writer http.ResponseWriter, request *http.Request)
 	})
 }
 func main() {
+	srv := &http.Server{
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "3000"
 	}
+	srv.Addr = ":" + port
 
 	fs := http.FileServer(http.Dir("assets"))
 	mux := http.NewServeMux()
@@ -451,6 +516,10 @@ func main() {
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
+	srv.Handler = mux
 
-	http.ListenAndServe(":"+port, mux)
+	err := srv.ListenAndServe()
+	if err != nil {
+		panic(err)
+	}
 }
