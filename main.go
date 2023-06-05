@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -96,12 +95,12 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Add("X-Target-User-Agent", ua)
 	w.Header().Set("X-Target-User-Agent", ua)
-	http.Redirect(w, req, final, 302)
+	http.Redirect(w, req, final, http.StatusFound)
 
 }
 func gmiFetch(fetchurl string) (*http.Response, error) {
 	resp := http.Response{
-		Body: ioutil.NopCloser(bytes.NewBufferString("Gemini Contenet")),
+		Body: io.NopCloser(bytes.NewBufferString("Gemini Contenet")),
 	}
 	tpl, err := pongo2.FromString(Header)
 	if err != nil {
@@ -124,11 +123,14 @@ func gmiFetch(fetchurl string) (*http.Response, error) {
 	}
 
 	article, err := readability.FromReader(inbuf, uu)
+	if err != nil {
+		return nil, err
+	}
 	out, err := tpl.Execute(pongo2.Context{"article": article, "url": fetchurl})
 	if err != nil {
 		return nil, err
 	}
-	resp.Body = ioutil.NopCloser(strings.NewReader(out))
+	resp.Body = io.NopCloser(strings.NewReader(out))
 	return &resp, nil
 
 }
@@ -184,7 +186,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		gz, _ := gzip.NewReader(resp.Body)
 		io.Copy(&tmp, gz)
 		resp.Body.Close()
-		resp.Body = ioutil.NopCloser(&tmp)
+		resp.Body = io.NopCloser(&tmp)
 	}
 	var tmp2 bytes.Buffer
 	io.Copy(&tmp2, resp.Body)
@@ -234,7 +236,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	if err != nil {
 		return nil, err
 	}
-	resp.Body = ioutil.NopCloser(strings.NewReader(out))
+	resp.Body = io.NopCloser(strings.NewReader(out))
 
 	return resp, err
 

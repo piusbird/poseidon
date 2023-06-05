@@ -15,14 +15,12 @@ import (
 	"strings"
 
 	gemini "git.sr.ht/~adnano/go-gemini"
-	"git.sr.ht/~adnano/go-gemini/tofu"
 	"github.com/flosch/pongo2/v6"
 	"github.com/vincent-petithory/dataurl"
 )
 
 // This will assume the url has already been validated
 
-var hostKeys tofu.KnownHosts
 var currentContext *url.URL
 
 func gmiGet(remote_url string, redirs int) (string, error) {
@@ -70,10 +68,10 @@ func gmiGet(remote_url string, redirs int) (string, error) {
 		return "", errors.New("input Unsupported")
 	case gemini.StatusRedirect:
 		if redirs > 3 {
-			return "", errors.New("Too Many Rediects")
+			return "", errors.New("too Many Rediects")
 		}
 		redurl, _ := url.Parse(resp.Meta)
-		if redurl.IsAbs() == true {
+		if redurl.IsAbs() {
 			rdrresponse, err := gmiGet(resp.Meta, redirs+1)
 			currentContext = working
 			if err != nil {
@@ -106,7 +104,7 @@ func getCanonicalUrl(current url.URL, urlfrag string) (string, error) {
 	if err != nil {
 		return "gemini://" + current.Hostname(), err
 	}
-	if canurl.IsAbs() == true {
+	if canurl.IsAbs() {
 		return canurl.String(), nil
 	} else if strings.HasPrefix(urlfrag, "/") {
 		newurl := url.URL(current)

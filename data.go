@@ -8,7 +8,6 @@ var UserAgents = map[string]string{
 	"IPhone":           "Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
 }
 var default_agent = UserAgents["IPhone"]
-var ourProxy = "http://localhost:8090"
 
 type OurCookie struct {
 	UserAgent   string

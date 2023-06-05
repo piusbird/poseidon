@@ -3,7 +3,6 @@ package main
 
 import (
 	"errors"
-	"log"
 	"net/url"
 )
 
@@ -23,22 +22,12 @@ func validateURL(strUrl string) (bool, error) {
 		return false, err
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return false, errors.New("Unsupported Schemea")
+		return false, errors.New("unsupported Schemea")
 
 	}
 	if u.User != nil {
-		return false, errors.New("Authentication unsupported")
+		return false, errors.New("authentication unsupported")
 	}
 	return true, nil
-
-}
-func getProxyUrl(hostname string, schema string) (string, error) {
-	log.Println(schema + hostname)
-	u, err := url.Parse(schema + hostname)
-	log.Println(u.String())
-	if err != nil {
-		return "", err
-	}
-	return u.String(), nil
 
 }
