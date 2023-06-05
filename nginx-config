@@ -1,0 +1,54 @@
+server {
+    listen 80;
+    server_name blue.piusbird.space;
+    return 302 https://$server_name$request_uri;
+}
+
+server {
+        access_log  /var/log/nginx/blueproxy.access.log;
+	error_log  /var/log/nginx/blueproxy.error.log;
+	listen 443 ssl;
+	ssl_certificate /etc/letsencrypt/live/blue.piusbird.space/fullchain.pem; 
+	ssl_certificate_key /etc/letsencrypt/live/blue.piusbird.space/privkey.pem;
+	
+	ssl_session_timeout 1d;
+        ssl_session_cache shared:MozSSL:10m;  # about 40000 sessions
+        ssl_session_tickets off;
+	ssl_dhparam /etc/dhparms.global;
+
+    # intermediate configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+
+    # HSTS (ngx_http_headers_module is required) (63072000 seconds)
+    add_header Strict-Transport-Security "max-age=63072000" always;
+
+    # OCSP stapling
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    
+	# client side verification options
+	 ssl_client_certificate /etc/nginx/client-full.crt;
+    # make verification optional, so we can display a 403 message to those
+    # who fail authentication
+    ssl_verify_client optional;
+
+	server_name blue.piusbird.space;
+	
+	location / {
+	if ($ssl_client_verify != SUCCESS) {
+        return 403;
+      }
+
+      proxy_set_header        Host $host;
+      proxy_set_header        X-Real-IP $remote_addr;
+      proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_pass http://172.42.0.2:3000;
+    }
+
+
+
+}
+
+
