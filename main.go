@@ -224,15 +224,15 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		if err != nil {
 			return nil, err
 		}
+		resp.Body = io.NopCloser(&tmp)
 
-	} else {
-		_, err = io.Copy(&tmp, resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		resp.Body.Close()
 	}
-	if tmp.Len() > 1 {
+	var tmp2 bytes.Buffer
+	_, err = io.Copy(&tmp2, resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if tmp.Len() < 1 {
 		return nil, errors.New("watson this is weird")
 	}
 
@@ -244,7 +244,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	var article GenaricArticle
 
 	if parser_select {
-		raw_article, err := readability.FromReader(&tmp, publishUrl)
+		raw_article, err := readability.FromReader(&tmp2, publishUrl)
 		if err != nil {
 			return nil, err
 		}
@@ -255,7 +255,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		article.Length = raw_article.Length
 		article.Image = raw_article.Image
 	} else {
-		raw_article, err := nuparser.FromReader(&tmp)
+		raw_article, err := nuparser.FromReader(&tmp2)
 		if err != nil {
 			return nil, err
 		}
