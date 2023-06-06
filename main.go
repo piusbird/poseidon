@@ -86,7 +86,7 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   3600,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, &cookie)
@@ -293,7 +293,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   3600,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 	}
 	if r.Method == http.MethodPost {
@@ -432,6 +432,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, http.ErrNoCookie):
 			cookie = &fakeCookie
+			http.SetCookie(w, cookie)
+			http.Redirect(w, r, r.RequestURI, http.StatusSeeOther)
 
 		default:
 			log.Println(err)
