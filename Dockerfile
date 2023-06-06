@@ -1,16 +1,18 @@
-FROM alpine:edge
+FROM  alpine:latest as builder
+RUN apk add --update --no-cache curl openssl go && rm -rf /var/cache/apk/*
+WORKDIR /app
+COPY . ./
 
-RUN echo -e  "\nhttps://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
-RUN apk add --update --no-cache go git make musl-dev curl openssl
-RUN mkdir -p /app/src
-WORKDIR /app/src
-ARG appRoot=/app
-COPY appbuild.sh /app/src
-RUN chmod +x appbuild.sh
-RUN ./appbuild.sh
-COPY sign.sh /app/src
-WORKDIR /
-COPY entrypoint.sh /
-RUN chmod +x entrypoint.sh
+RUN go mod download
+RUN go build
+
+FROM alpine:latest
+
+
+RUN apk add --update --no-cache curl openssl && rm -rf /var/cache/apk/*
+WORKDIR /app
+COPY . ./
+COPY --from=builder /app/poseidon /app/poseidon
+RUN chmod +x /app/entrypoint.sh
 EXPOSE 3000
-ENTRYPOINT ./entrypoint.sh
+ENTRYPOINT /app/entrypoint.sh

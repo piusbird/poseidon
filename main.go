@@ -87,7 +87,7 @@ func postFormHandler(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   3600,
 		HttpOnly: true,
 		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, &cookie)
 	log.Println(final)
@@ -289,6 +289,14 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
+	fakeCookie := http.Cookie{
+		Name:     "blueProxyUserAgent",
+		Path:     "/",
+		MaxAge:   3600,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	}
 	if r.Method == http.MethodPost {
 		http.Error(w, "I am not an owl", http.StatusTeapot)
 		return
@@ -383,6 +391,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	remurl := urlparts[0] + "//" + urlparts[1]
 	encoded_ua, err := encodeCookie(defaultCookie)
+	fakeCookie.Value = encoded_ua
+
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -417,22 +427,13 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error()+" "+remurl, http.StatusInternalServerError)
 		return
 	}
-	cookie, err := r.Cookie("blueProxyUserAgent")
+	var cookie *http.Cookie
+	cookie, err = r.Cookie("blueProxyUserAgent")
 	if err != nil {
 		switch {
 		case errors.Is(err, http.ErrNoCookie):
-			cookie := http.Cookie{
-				Name:     "blueProxyUserAgent",
-				Value:    encoded_ua,
-				Path:     "/",
-				MaxAge:   3600,
-				HttpOnly: true,
-				Secure:   true,
-				SameSite: http.SameSiteLaxMode,
-			}
-			http.SetCookie(w, &cookie)
-			http.Redirect(w, r, r.RequestURI, http.StatusSeeOther)
-			//http.Error(w, "Try again", http.StatusInternalServerError)
+			cookie = &fakeCookie
+
 		default:
 			log.Println(err)
 			http.Error(w, "server error", http.StatusInternalServerError)
