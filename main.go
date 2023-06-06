@@ -232,9 +232,6 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	if err != nil {
 		return nil, err
 	}
-	if tmp.Len() < 1 {
-		return nil, errors.New("watson this is weird")
-	}
 
 	publishUrl, err := url.Parse(fetchurl)
 	if err != nil {
