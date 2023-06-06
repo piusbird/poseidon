@@ -192,9 +192,6 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	}
 	defer resp.Body.Close()
 
-	if err != nil {
-		return nil, err
-	}
 	var tmp bytes.Buffer
 	if strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
 		log.Println("Yes we gziped")
@@ -228,13 +225,15 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 			return nil, err
 		}
 
-		resp.Body = io.NopCloser(&tmp)
 	} else {
 		_, err = io.Copy(&tmp, resp.Body)
 		if err != nil {
 			return nil, err
 		}
 		resp.Body.Close()
+	}
+	if tmp.Len() > 1 {
+		return nil, errors.New("watson this is weird")
 	}
 
 	publishUrl, err := url.Parse(fetchurl)
