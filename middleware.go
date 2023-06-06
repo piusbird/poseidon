@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"os"
 	"time"
@@ -27,4 +29,26 @@ func LoggingWrapper(log *os.File, handler http.HandlerFunc) http.HandlerFunc {
 		t := time.Now()
 		log.WriteString(r.RemoteAddr + " " + t.Format(time.UnixDate) + " " + r.RequestURI + "\n")
 	}
+}
+
+func encodeCookie(c OurCookie) (string, error) {
+	first, err := json.Marshal(c)
+	if err != nil {
+		return "", err
+	}
+	output := base64.URLEncoding.EncodeToString(first)
+	return output, nil
+}
+
+func decodeCookie(cookieValue string) (OurCookie, error) {
+	decodedJson, err := base64.URLEncoding.DecodeString(cookieValue)
+	var oc OurCookie
+	if err != nil {
+		return oc, err
+	}
+	err = json.Unmarshal([]byte(decodedJson), &oc)
+	if err != nil {
+		return oc, err
+	}
+	return oc, nil
 }
