@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -19,7 +20,6 @@ import (
 	"github.com/flosch/pongo2/v6"
 	readability "github.com/go-shiori/go-readability"
 
-	"golang.org/x/time/rate"
 	"piusbird.space/poseidon/nuparser"
 )
 
@@ -251,6 +251,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		article.Title = raw_article.Title
 		article.Length = raw_article.Length
 		article.Image = raw_article.Image
+		article.Text = raw_article.TextContent
 	} else {
 		raw_article, err := nuparser.FromReader(&tmp2)
 		if err != nil {
@@ -277,6 +278,11 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	out, err := tpl.Execute(pongo2.Context{"article": article, "url": fetchurl, "switchurl": lightswitch})
 	if err != nil {
 		return nil, err
+	}
+	if strings.HasPrefix(original.Header.Get("User-Agent"), "curl") {
+		prettyBody := fmt.Sprintf("%s By %s\n %s\n ", article.Title, article.Byline, article.Text)
+		resp.Body = io.NopCloser(strings.NewReader(prettyBody))
+		return resp, err
 	}
 	resp.Body = io.NopCloser(strings.NewReader(out))
 
@@ -316,70 +322,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	curl_mode := r.Header.Get("X-BP-Target-UserAgent")
+	requesterUserAgent := r.Header.Get("User-Agent")
 
-	if curl_mode != "" {
-		urlparts := strings.SplitN(r.URL.Path[1:], "/", 2)
-		if !validUserAgent(curl_mode) {
-			http.Error(w, "Agent not allowed "+curl_mode, http.StatusForbidden)
-		}
-		if len(urlparts) < 2 {
-			return
-		}
-
-		var mozreader = false
-
-		if r.Header.Get("X-BP-MozReader") != "" {
-			mozreader = true
-		}
-		// Confusing part needed to hook up gemini starts here
-		// Basically we skip validation if it's a gemini uri and
-		// do our own thing with it
-
-		remurl := urlparts[0] + "//" + urlparts[1]
-		ur, err := url.Parse(remurl)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		log.Println("Honk!")
-		log.Println(ur.String())
-		if ur.Scheme == "gemini" {
-			remurl += r.URL.RawQuery
-			resp, err := gmiFetch(remurl)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			defer resp.Body.Close()
-			_, err = io.Copy(w, resp.Body)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-			return
-		}
-
-		_, err = validateURL(remurl)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		resp, err := fetch(remurl, curl_mode, mozreader, r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer resp.Body.Close()
-		_, err = io.Copy(w, resp.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		return
-
-	}
 	urlparts := strings.SplitN(r.URL.Path[1:], "/", 2)
 	if len(urlparts) < 2 {
 		return
@@ -388,6 +332,28 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	remurl := urlparts[0] + "//" + urlparts[1]
 	encoded_ua, err := encodeCookie(defaultCookie)
 	fakeCookie.Value = encoded_ua
+	if strings.HasPrefix(requesterUserAgent, "curl") {
+		_, err = validateURL(remurl)
+
+		if err != nil {
+			http.Error(w, err.Error()+" "+remurl, http.StatusTeapot)
+			return
+		}
+		ur, _ := url.Parse(remurl)
+		if ur.Scheme == "gemini" {
+			http.Error(w, "Gemini not supported through curl", http.StatusBadGateway)
+			return
+		}
+		a, err := fetch(remurl, default_agent, bool(ArcParser), r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		io.Copy(w, a.Body)
+		return
+
+	}
 
 	if err != nil {
 		log.Println(err)
@@ -420,7 +386,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, err = validateURL(remurl)
 	if err != nil {
-		http.Error(w, err.Error()+" "+remurl, http.StatusInternalServerError)
+		http.Error(w, err.Error()+" "+remurl, http.StatusTeapot)
 		return
 	}
 	var cookie *http.Cookie
@@ -475,23 +441,17 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// Add rate limitin per treehouse
-func rateLimitIndex(next func(writer http.ResponseWriter, request *http.Request)) http.HandlerFunc {
-	limiter := rate.NewLimiter(rate.Limit(rateBurst), rateMax)
-	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if !limiter.Allow() {
-			http.Error(writer, "Enhance your calm", 420)
-			return
-		} else {
-			next(writer, request)
-		}
-	})
-}
 func main() {
 	srv := &http.Server{
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
+	logfile, err := os.OpenFile("access.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Println("Error opening log")
+		panic(err)
+	}
+	defer logfile.Close()
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -504,7 +464,7 @@ func main() {
 	debugmode := os.Getenv("DEBUG")
 	mux.HandleFunc("/redirect", postFormHandler)
 	mux.HandleFunc("/redirect/", postFormHandler)
-	mux.HandleFunc("/", rateLimitIndex(indexHandler))
+	mux.HandleFunc("/", LoggingWrapper(logfile, rateLimitIndex(indexHandler)))
 
 	if debugmode != "" {
 
@@ -517,7 +477,7 @@ func main() {
 	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
 	srv.Handler = mux
 
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	if err != nil {
 		panic(err)
 	}
