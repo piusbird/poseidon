@@ -123,6 +123,9 @@ func gmiFetch(fetchurl string) (*http.Response, error) {
 	}
 
 	article, err := readability.FromReader(inbuf, uu)
+	if err != nil {
+		return nil, err
+	}
 	out, err := tpl.Execute(pongo2.Context{"article": article, "url": fetchurl})
 	if err != nil {
 		return nil, err
@@ -217,6 +220,9 @@ func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error
 		}
 
 		article, err := readability.FromReader(&tmp2, publishUrl)
+		if err != nil {
+			return nil, err
+		}
 		tmp_content := strings.NewReader(article.Content)
 		cloneContent := strings.Clone(article.Content)
 		filteredContent, err := RewriteLinks(tmp_content, homeURL)
@@ -369,7 +375,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 				Path:     "/",
 				MaxAge:   3600,
 				HttpOnly: true,
-				Secure:   true,
+				Secure:   false,
 				SameSite: http.SameSiteLaxMode,
 			}
 			http.SetCookie(w, &cookie)
