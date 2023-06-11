@@ -176,10 +176,36 @@ func fetch(fetchurl string, user_agent string, rdbl bool) (*http.Response, error
 		log.Println("dezipping")
 		var tmp bytes.Buffer
 		gz, _ := gzip.NewReader(resp.Body)
-		io.Copy(&tmp, gz)
-		resp.Body.Close()
-		resp.Body = ioutil.NopCloser(&tmp)
+		contentSize := resp.ContentLength
+
+		if contentSize > maxBodySize {
+			return nil, errors.New("response body to large")
+		}
+
+		decompBuffMax := maxBodySize * 2
+		log.Println("dezipping")
+
+		for {
+			var bytesRead int64 = 0
+			n, err := io.CopyN(&tmp, gz, 4096)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			bytesRead += n
+			if bytesRead > decompBuffMax {
+				return nil, errors.New("decompression failed")
+			}
+
+		}
+
+		err = resp.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+		resp.Body = io.NopCloser(&tmp)
+
 	}
+
 	if rdbl || !rdbl {
 		var tmp2 bytes.Buffer
 		io.Copy(&tmp2, resp.Body)

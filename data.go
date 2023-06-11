@@ -21,6 +21,7 @@ type ImgData struct {
 
 var rateMax = 6
 var rateBurst = 3
+var maxBodySize int64 = 2 * (1024 * 1024)
 
 var defaultCookie = OurCookie{default_agent, true}
 var Header = `<!DOCTYPE html>
