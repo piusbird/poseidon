@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -14,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/flosch/pongo2/v6"
 	readability "github.com/go-shiori/go-readability"
@@ -424,12 +426,22 @@ func main() {
 		port = "3000"
 	}
 
+	srv := &http.Server{
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+	srv.Addr = ":" + port
 	fs := http.FileServer(http.Dir("assets"))
 	mux := http.NewServeMux()
 	mux.HandleFunc("/redirect", postFormHandler)
 	mux.HandleFunc("/redirect/", postFormHandler)
 	mux.HandleFunc("/", rateLimitIndex(indexHandler))
 	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
+	srv.Handler = mux
 
-	http.ListenAndServe(":"+port, mux)
+	err := srv.ListenAndServe()
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 }
