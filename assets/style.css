@@ -56,6 +56,7 @@ main {
   max-width: var(--width);
   padding: var(--padding);
   margin: auto;
+  font-size: x-large;
 }
 /* CSS Image overflow fix courtsy of Norm Malvarma  */
 img{

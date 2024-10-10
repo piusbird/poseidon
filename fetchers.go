@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"time"
@@ -54,9 +55,31 @@ func gmiFetch(fetchurl string) (*http.Response, error) {
 
 }
 
+//
+// build_request Builds a client side http request for the fetcher
+
+func build_http_request(url string, user_agent string) (*http.Request, error) {
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	req.Header.Set("User-Agent", default_agent)
+	if user_agent != "" {
+		req.Header.Set("User-Agent", user_agent)
+	}
+
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Accept-Encoding", "gzip")
+	return req, nil
+}
+
 // FIXME: This code is basically a pile of dung
 // Templates render where they shouldn't, miniweb should be deprecated etc, etc
 // Shpuld also move this into it's own file
+
 func fetch(fetchurl string, user_agent string, parser_select bool, original *http.Request) (*http.Response, error) {
 
 	tpl, err := pongo2.FromString(Header)
@@ -64,6 +87,8 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 		return nil, err
 
 	}
+	jar, _ := cookiejar.New(nil)
+
 	tr := &http.Transport{
 		MaxIdleConns:       10,
 		IdleConnTimeout:    30 * time.Second,
@@ -86,23 +111,19 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 
 	client := &http.Client{}
 	client.Transport = tr
+	client.Jar = jar
 
-	req, err := http.NewRequest("GET", fetchurl, nil)
+	req, err := build_http_request(fetchurl, user_agent)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
-	req.Header.Set("User-Agent", default_agent)
-	if user_agent != "" {
-		req.Header.Set("User-Agent", user_agent)
-	}
-
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Accept-Encoding", "gzip")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
+	}
+	log.Printf("Request Status %v", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		client.Do(req)
 	}
 	defer resp.Body.Close()
 

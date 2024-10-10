@@ -42,6 +42,7 @@ func RewriteLinks(reqBody io.Reader, urlPrefix string) (string, error) {
 						}
 
 						n.Attr[i].Val = newurl
+						
 					}
 					break
 				}
