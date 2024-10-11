@@ -426,6 +426,16 @@ func rateLimitIndex(next func(writer http.ResponseWriter, request *http.Request)
 		}
 	})
 }
+func robotsRoute(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "I am a teapot", http.StatusTeapot)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain")
+	robots := "User-agent: *\nDisallow: /"
+	w.Write([]byte(robots))
+
+}
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -441,6 +451,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/redirect", postFormHandler)
 	mux.HandleFunc("/redirect/", postFormHandler)
+	mux.HandleFunc("/robots.txt", robotsRoute)
 	mux.HandleFunc("/", rateLimitIndex(indexHandler))
 	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
 	srv.Handler = mux
