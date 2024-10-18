@@ -43,9 +43,6 @@ func gmiGet(remote_url string, redirs int) (string, error) {
 		return err.Error(), err
 	}
 
-	if err != nil {
-		return "", err
-	}
 	resp, err := client.Do(ctx, req)
 	if resp.Status == gemini.StatusNotFound {
 		return "not found", nil
