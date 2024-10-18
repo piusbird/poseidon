@@ -98,10 +98,6 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	homeURL = "http://" + r.Host
 	log.Println(homeURL)
-	if err != nil {
-		http.Error(w, "Lost my soul", http.StatusInternalServerError)
-		return
-	}
 
 	requesterUserAgent := r.Header.Get("User-Agent")
 
@@ -191,11 +187,6 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	if r.Header.Get("X-Forwarded-For") != "" {
 		log.Printf("%s: %s", r.Header.Get("X-Forwarded-For"), remurl)
 	} else {
@@ -219,5 +210,16 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+}
+
+func robotsRoute(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "I am a teapot", http.StatusTeapot)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain")
+	robots := "User-agent: *\nDisallow: /"
+	w.Write([]byte(robots))
 
 }

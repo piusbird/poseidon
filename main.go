@@ -33,6 +33,7 @@ func main_wrap() int {
 	debugmode := os.Getenv("DEBUG")
 	mux.HandleFunc("/redirect", postFormHandler)
 	mux.HandleFunc("/redirect/", postFormHandler)
+	mux.HandleFunc("/robots.txt", robotsRoute)
 	mux.HandleFunc("/", LoggingWrapper(logfile, rateLimitIndex(indexHandler)))
 
 	if debugmode != "" {
