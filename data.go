@@ -2,10 +2,8 @@ package main
 
 var version = "[GITREV]: Netscape Wizardry "
 var UserAgents = map[string]string{
-	"Desktop":          "Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0",
-	"Googlebot Mobile": "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html",
-	"Twitter":          "Mozilla/5.0 (compatible; Twitterbot/1.0)as",
-	"IPhone":           "Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+	"Desktop": "Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0",
+	"IPhone":  "Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
 }
 
 var maxBodySize int64 = 2 * 1024 * 1024
@@ -13,8 +11,8 @@ var maxBodySize int64 = 2 * 1024 * 1024
 type ParserType bool
 
 const (
-	NUParser  ParserType = false
-	ArcParser ParserType = true
+	NUParser  ParserType = true
+	ArcParser ParserType = false
 )
 
 var default_agent = UserAgents["IPhone"]
@@ -38,11 +36,14 @@ var Header = `<!DOCTYPE html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <base href="/">
     <title>{{article.Title}}</title>
     <link rel="stylesheet" href="/assets/style.css" />
+    <script type="module" crossorigin src="/assets/js/index.js"></script> 
   </head>
   <body id="top">
   <main>
+  <div class="content">
   <h1>{{article.Title}} </h1> <br/>
   <h3> {{article.Byline}} </h3> <br/>
   <a href={{switchurl}}> Switch Engines </a>
@@ -50,8 +51,17 @@ var Header = `<!DOCTYPE html>
   <img src="{{article.Image}}">  Article Images </img>
   <hr/>
   {{article.Content | safe }}
+  
   <hr/>
   <footer> <b> <a href="{{url}}"> Original Source </a> -  </footer>
+  </div>
+  <div class="nav-bar">
+        <button class="nav-button" onclick="lineHeightAdust(0.1)">LineSP +</button>
+        <button class="nav-button" onclick="lineHeightAdust(-0.1)">LineSp -</button>
+        <button class="nav-button">Font Size +</button>
+        <button class="nav-button">Font Size -</button>
+    </div>
+
   </main> 
   </body>
   </html>`

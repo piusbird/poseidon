@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"time"
@@ -28,7 +29,6 @@ func main_wrap() int {
 	}
 	srv.Addr = ":" + port
 
-	fs := http.FileServer(http.Dir("assets"))
 	mux := http.NewServeMux()
 	debugmode := os.Getenv("DEBUG")
 	mux.HandleFunc("/redirect", postFormHandler)
@@ -44,7 +44,8 @@ func main_wrap() int {
 		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
-	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
+	mime.AddExtensionType(".js", "application/javascript")
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("assets"))))
 	srv.Handler = mux
 
 	err = srv.ListenAndServe()
