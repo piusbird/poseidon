@@ -188,7 +188,7 @@ footer {
    is darker than the alt-paragraph shading.        */
 p:hover,
 li:hover {
-  background-color: rgba(242, 242, 235, 0.932);
+  background-color: rgba(24, 6, 104, 0.932);
 
 }
 
