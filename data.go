@@ -4,6 +4,7 @@ var version = "[GITREV]: Netscape Wizardry "
 var UserAgents = map[string]string{
 	"Desktop": "Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0",
 	"IPhone":  "Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+	"XBox":    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; Xbox; Xbox One) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edge/44.18363.8131",
 }
 
 var maxBodySize int64 = 2 * 1024 * 1024
@@ -39,27 +40,28 @@ var Header = `<!DOCTYPE html>
     <base href="/">
     <title>{{article.Title}}</title>
     <link rel="stylesheet" href="/assets/style.css" />
-    <script type="module" crossorigin src="/assets/js/index.js"></script> 
+    <script type="module" crossorigin="anonymous" src="/assets/js/index.js"></script> 
   </head>
   <body id="top">
   <main>
   <div class="content">
   <h1>{{article.Title}} </h1> <br/>
   <h3> {{article.Byline}} </h3> <br/>
-  <a href={{switchurl}}> Switch Engines </a>
+  
   
   <img src="{{article.Image}}">  Article Images </img>
   <hr/>
   {{article.Content | safe }}
   
   <hr/>
-  <footer> <b> <a href="{{url}}"> Original Source </a> -  </footer>
+  <footer> <b> <a href="{{url}}"> Original Source </a> - 
+  <a href={{switchurl}}> Switch Engines </a> </footer>
   </div>
   <div class="nav-bar">
         <button class="nav-button" onclick="lineHeightAdust(0.1)">LineSP +</button>
         <button class="nav-button" onclick="lineHeightAdust(-0.1)">LineSp -</button>
-        <button class="nav-button">Font Size +</button>
-        <button class="nav-button">Font Size -</button>
+        <button class="nav-button"  onclick="fontSizeAdjust(2)">Font Size +</button>
+        <button class="nav-button" onclick="fontSizeAdjust(-2)">Font Size -</button>
     </div>
 
   </main> 

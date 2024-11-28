@@ -80,6 +80,14 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 	}
+	// I Am a Baka for doing this, but firefox must be supported
+	// Therefore i mess with CORS... This will likely result in
+	// Some sort of security problem in the future
+	// But we'll burn that bridge when we get to the other side
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Max-Age", "15")
+
 	if r.Method == http.MethodPost {
 		http.Error(w, "I am not an owl", http.StatusTeapot)
 		return
@@ -97,6 +105,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	queryParams, _ := url.ParseQuery(r.URL.RawQuery)
 	var err error
 	homeURL = "http://" + r.Host
+
 	log.Println(homeURL)
 
 	requesterUserAgent := r.Header.Get("User-Agent")
@@ -222,4 +231,12 @@ func robotsRoute(w http.ResponseWriter, r *http.Request) {
 	robots := "User-agent: *\nDisallow: /"
 	w.Write([]byte(robots))
 
+}
+
+func corsWrapper(sys http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Max-Age", "15")
+		sys.ServeHTTP(w, r)
+	}
 }

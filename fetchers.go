@@ -78,7 +78,7 @@ func build_http_request(url string, user_agent string) (*http.Request, error) {
 
 // FIXME: This code is basically a pile of dung
 // Templates render where they shouldn't, miniweb should be deprecated etc, etc
-// Shpuld also move this into it's own file
+// Should also move this into it's own file
 
 func fetch(fetchurl string, user_agent string, parser_select bool, original *http.Request) (*http.Response, error) {
 
@@ -129,7 +129,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 
 	var tmp bytes.Buffer
 	if strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
-		log.Println("Yes we gziped")
+		log.Println("Yes we gzipped")
 
 		gz, _ := gzip.NewReader(resp.Body)
 

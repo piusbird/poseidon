@@ -1,37 +1,53 @@
-<title> Blue DabaDeeDabaProxy </title>
-	<body><style>body { font-size: 2em;
-    background: navy;
-    color: gold; 
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title> Blue DabaDeeDabaProxy </title>
+  <style>
+    body {
+      font-size: 2em;
+      background: navy;
+      color: gold;
     }
+
     .container {
-  width: 500px;
-  clear: both;
-}
+      width: 500px;
+      clear: both;
+    }
 
-.container input {
-  width: 100%;
-  clear: both;
-}
+    .container input {
+      width: 100%;
+      clear: both;
+    }
+
     .smallcaps {
-    font-variant: small-caps;
-    font-size: 0.520em;
-}
-</style>
-<p></p>
-<p>Welcome my good stranger
-<form action="/redirect" method="post">
-<p>URL: <input name="target_url"> <br/>
-<label for="target_ua">Agent?</label>
+      font-variant: small-caps;
+      font-size: 0.520em;
+    }
+  </style>
+</head>
 
-<select name="target_ua" id="select-ua">
-  {% for d, v in useragents %}
-  <option value="{{v}}"> {{d}} </option>
-  {% endfor %} 
-  </select><br/>
-  <label for="readability"> Compatibility Mode</label>
-  <input type="checkbox"  name="readability" value="true"> <br>
+<body>
+  <p>Welcome my good stranger </p>
+  <form action="/redirect" method="post">
+    <p>URL: <input type="text" name="target_url"> <br>
+      <label for="target_ua">Agent?</label>
 
-<input type="submit" value="Go">
-</form>
+      <select name="target_ua" id="select-ua">
+        {% for d, v in useragents %}
+        <option value="{{v}}"> {{d}} </option>
+        {% endfor %}
+      </select><br>
+      <label for="readability"> Compatibility Mode</label>
+      <input type="checkbox" name="readability" value="true"> <br>
 
-<footer> <div class="smallcaps"><b> Version: {{version}} </b> </div> </footer> 
+      <button name="Read It" type="submit"> Go </button>
+    </p>
+  </form>
+
+  <footer>
+    <div class="smallcaps"><b> Version: {{version}} </b> </div>
+  </footer>
+</body>
+
+</html>

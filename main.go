@@ -45,7 +45,7 @@ func main_wrap() int {
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 	mime.AddExtensionType(".js", "application/javascript")
-	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("assets"))))
+	mux.Handle("/assets/", http.StripPrefix("/assets/", corsWrapper(http.FileServer(http.Dir("assets")))))
 	srv.Handler = mux
 
 	err = srv.ListenAndServe()
