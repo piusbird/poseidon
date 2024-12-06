@@ -1,6 +1,6 @@
 package main
 
-var version = "1.7.0-RC1 Netscape Wizardry "
+var version = "1.7.0-RC2 Netscape Wizardry "
 var UserAgents = map[string]string{
 	"Desktop": "Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0",
 	"IPhone":  "Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
