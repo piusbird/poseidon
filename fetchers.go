@@ -81,7 +81,9 @@ func build_http_request(url string, user_agent string) (*http.Request, error) {
 // Should also move this into it's own file
 
 func fetch(fetchurl string, user_agent string, parser_select bool, original *http.Request) (*http.Response, error) {
-
+	if strings.HasSuffix(fetchurl, ".pdf") {
+		return nil, errors.New("no pdf")
+	}
 	tpl, err := pongo2.FromString(Header)
 	if err != nil {
 		return nil, err
@@ -128,6 +130,7 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 	defer resp.Body.Close()
 
 	var tmp bytes.Buffer
+	defer tmp.Reset()
 	if strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
 		log.Println("Yes we gzipped")
 
@@ -163,6 +166,8 @@ func fetch(fetchurl string, user_agent string, parser_select bool, original *htt
 
 	}
 	var tmp2 bytes.Buffer
+	defer tmp2.Reset()
+
 	_, err = io.Copy(&tmp2, resp.Body)
 	if err != nil {
 		return nil, err

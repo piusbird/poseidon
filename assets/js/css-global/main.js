@@ -135,7 +135,7 @@
          * normalizeVariableName()  Forces name to be a String, and attach the
          * mandatory '--' prefix when autoprefixer is Enabled
          *
-         * @param  {[String]} name  Name of thw requested variable
+         * @param  {[String]} name  Name of the requested variable
          *
          * @return {[String]}
          *

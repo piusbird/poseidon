@@ -2,7 +2,10 @@
 <html lang="en">
 
 <head>
-  <title> Blue DabaDeeDabaProxy </title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title> Blue Proxy </title>
   <style>
     body {
       font-size: 2em;
@@ -24,11 +27,24 @@
       font-variant: small-caps;
       font-size: 0.520em;
     }
+
+    .infobox {
+      font-size: 1em;
+    }
   </style>
 </head>
 
 <body>
-  <p>Welcome my good stranger </p>
+  <div class="infobox">
+    <h1> Welcome my good stranger</h1>
+    <p> This website allows you to view other websites, in a way
+      that is more accessible to people with neurological disabilities,
+      affecting the ability to read.
+      <br>
+      If you aren't sure what the options mean use the defaults, and see what makes sense
+      for you.
+    </p>
+  </div>
   <form action="/redirect" method="post">
     <p>URL: <input type="text" name="target_url"> <br>
       <label for="target_ua">Agent?</label>
@@ -38,15 +54,16 @@
         <option value="{{v}}"> {{d}} </option>
         {% endfor %}
       </select><br>
-      <label for="readability"> Compatibility Mode</label>
-      <input type="checkbox" name="readability" value="true"> <br>
+      <label> Compatibility Mode
+        <input type="checkbox" name="readability" value="true"> <br></label>
 
       <button name="Read It" type="submit"> Go </button>
     </p>
   </form>
 
   <footer>
-    <div class="smallcaps"><b> Version: {{version}} </b> </div>
+    <div class="smallcaps"><b> Version: {{version}} - <a href="https://git.sr.ht/~marnold128/poseidon"> Project Home</a>
+      </b> </div>
   </footer>
 </body>
 

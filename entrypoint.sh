@@ -1,6 +1,13 @@
 #!/bin/sh
-cd /app
-#./miniwebproxy >> /stackmsg 2>&1 &
-./poseidon >> /stackmsg 2>&1
-tail -f /stackmsg
+
+if [[ $# -gt 0 ]]; then
+    # If we pass a command, run it
+    exec "$@"
+else
+    # Else default to starting the server
+    exec /app/poseidon 
+
+fi
+
+
 
