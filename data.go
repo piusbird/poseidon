@@ -7,6 +7,7 @@ var UserAgents = map[string]string{
 	"XBox":    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; Xbox; Xbox One) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edge/44.18363.8131",
 }
 
+var blocList = "(Akkoma|B(lue)?sky|Bridgy|Firefish|Frendica|Mastodon|Misskey|Pleorma|gotosocial)"
 var maxBodySize int64 = 2 * 1024 * 1024
 
 type ParserType bool

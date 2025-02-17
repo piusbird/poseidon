@@ -7,14 +7,22 @@ import (
 	"os"
 	"time"
 
+	"regexp"
+
 	"golang.org/x/time/rate"
 )
 
 // Add rate limitin per treehouse
+
+// The code i am about to write shouldn't go here.. But
+// but this is really the cleanest way to do it given the runaway costs
 func rateLimitIndex(next func(writer http.ResponseWriter, request *http.Request)) http.HandlerFunc {
 	limiter := rate.NewLimiter(rate.Limit(rateBurst), rateMax)
+	agents, _ := regexp.Compile(blocList)
+
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if !limiter.Allow() {
+		incoming := request.Header.Get("User-Agent")
+		if !limiter.Allow() || agents.MatchString(incoming) {
 			http.Error(writer, "Enhance your calm", 420)
 			return
 		} else {
